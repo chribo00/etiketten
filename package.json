@@ -2,11 +2,11 @@
   "name": "etiketten",
   "version": "0.1.0",
   "private": true,
-  "main": "dist/main/main.js",
+  "main": "src/main/main.ts",
   "type": "module",
   "scripts": {
     "dev": "concurrently -k -n MAIN,RENDERER \"npm:dev:main\" \"npm:dev:renderer\"",
-    "dev:main": "ts-node --project tsconfig.json src/main/main.ts",
+    "dev:main": "cross-env NODE_OPTIONS=\"-r ts-node/register/transpile-only -r source-map-support/register\" TS_NODE_PROJECT=tsconfig.json electron .",
     "dev:renderer": "vite --config vite.config.ts",
     "build": "npm run build:renderer && tsc -p tsconfig.json",
     "build:renderer": "vite build --config vite.config.ts",
