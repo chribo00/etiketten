@@ -1,21 +1,21 @@
 import React from 'react';
-import ImportDatanorm from './ImportDatanorm';
-import Search from './Search';
-import Cart from './Cart';
-import LabelOptions from './LabelOptions';
-import Preview from './Preview';
+import ImportPane from './ImportPane';
+import SearchPane from './SearchPane';
+import CartPane from './CartPane';
+import LabelOptionsPane from './LabelOptionsPane';
+import PreviewPane from './PreviewPane';
 
 const Shell: React.FC = () => {
   return (
     <div>
       <h1>Etiketten</h1>
-      <ImportDatanorm />
-      <Search />
-      <Cart />
-      <LabelOptions />
-      <Preview />
-    </div>
-  );
-};
+        <ImportPane />
+        <SearchPane />
+        <CartPane />
+        <LabelOptionsPane />
+        <PreviewPane />
+      </div>
+    );
+  };
 
 export default Shell;
