@@ -2,33 +2,81 @@
   "name": "etiketten",
   "version": "0.1.0",
   "private": true,
+  "main": "dist/main/main.js",
+  "type": "module",
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "dev": "concurrently -k -n MAIN,RENDERER \"npm:dev:main\" \"npm:dev:renderer\"",
+    "dev:main": "ts-node --project tsconfig.json src/main/main.ts",
+    "dev:renderer": "vite --config vite.config.ts",
+    "build": "npm run build:renderer && tsc -p tsconfig.json",
+    "build:renderer": "vite build --config vite.config.ts",
+    "start": "electron .",
+    "dist": "npm run build && electron-builder",
+    "postinstall": "electron-builder install-app-deps",
+    "test": "echo \"No tests configured\" && exit 0"
   },
   "dependencies": {
-    "@prisma/client": "^6.14.0",
-    "next": "15.4.7",
-    "prisma": "^6.14.0",
-    "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "electron": "^30.0.0",
+    "electron-updater": "^6.1.1",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "react-router-dom": "^6.0.0",
+    "@fluentui/react-components": "^9.0.0",
+    "better-sqlite3": "^9.0.0",
+    "pdfkit": "^0.13.0",
+    "bwip-js": "^4.0.0",
+    "png-js": "^1.0.0",
+    "sharp": "^0.33.0",
+    "iconv-lite": "^0.6.3",
+    "fast-csv": "^4.3.6",
+    "yup": "^1.2.0",
+    "zod": "^3.22.0"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "15.4.7",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5.0.0",
+    "ts-node": "^10.9.1",
+    "vite": "^5.0.0",
+    "concurrently": "^8.0.0",
+    "wait-on": "^7.0.0",
+    "electron-builder": "^24.0.0",
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "@types/pdfkit": "^0.13.5",
+    "@types/bwip-js": "^2.0.0",
+    "@vitejs/plugin-react": "^5.0.0"
   },
-  "description": "This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).",
-  "main": "index.js",
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
+  "build": {
+    "appId": "com.yourcompany.etiketten",
+    "productName": "Etiketten",
+    "directories": {
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/",
+        "to": "resources",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico",
+      "artifactName": "Etiketten-Setup-${version}.exe"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
 }
