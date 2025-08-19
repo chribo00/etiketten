@@ -16,8 +16,8 @@ const SearchPane: React.FC<Props> = ({ defaultOpts, onAdded }) => {
   const [qty, setQty] = useState<Record<string, number>>({});
 
   const load = async (p = page) => {
-    const res = await window.api.search(q, p, PAGE_SIZE);
-    setResults(res);
+    const res = await window.api?.search?.(q, p, PAGE_SIZE);
+    setResults(res?.items || []);
   };
 
   const doSearch = async () => {
@@ -27,7 +27,7 @@ const SearchPane: React.FC<Props> = ({ defaultOpts, onAdded }) => {
 
   const add = async (id: string) => {
     const n = qty[id] || 1;
-    await window.api.cart.add(id, n, defaultOpts);
+    await window.api?.cart?.add?.({ articleId: id, qty: n, opts: defaultOpts });
     if (onAdded) onAdded();
   };
 

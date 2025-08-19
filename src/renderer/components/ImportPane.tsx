@@ -6,12 +6,15 @@ const ImportPane: React.FC = () => {
   const [progress, setProgress] = useState<{ processed: number; total: number } | null>(null);
 
   useEffect(() => {
-    window.api.onImportProgress((p: any) => setProgress(p));
+    const unsub = window.api?.onImportProgress?.((p: any) => setProgress(p));
+    return () => {
+      unsub && unsub();
+    };
   }, []);
 
   const handleImport = async () => {
     if (file) {
-      await window.api.importDatanorm((file as any).path);
+      await window.api?.importDatanorm?.(false, (file as any).path);
     }
   };
 
@@ -19,8 +22,9 @@ const ImportPane: React.FC = () => {
 
   return (
     <div>
+      {!window.api && <div>Bridge nicht initialisiert</div>}
       <input type="file" accept=".txt,.asc,.zip" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-      <Button onClick={handleImport} disabled={!file}>
+      <Button onClick={handleImport} disabled={!file || !window.api}>
         Importieren
       </Button>
       {progress && <div>{pct}% ({progress.processed}/{progress.total})</div>}

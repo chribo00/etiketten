@@ -9,6 +9,8 @@ npm install
 npm run dev
 ```
 
+Der Preload-Code in `src/preload` wird dabei automatisch nach `src/preload/index.js` gebaut und von Electron geladen.
+
 ## Produktion
 
 ```bash
