@@ -15,7 +15,7 @@ const Shell: React.FC = () => {
   });
   const [cartCount, setCartCount] = useState(0);
   const refreshCart = async () => {
-    const c = await window.api.cart.get();
+    const c = (await window.api?.cart?.get?.()) || [];
     setCartCount(c.length);
   };
   useEffect(() => {
@@ -24,6 +24,7 @@ const Shell: React.FC = () => {
   return (
     <div>
       <h1>Etiketten</h1>
+      {!window.api && <div>Bridge nicht initialisiert</div>}
       <ImportPane />
       <LabelOptionsPane opts={opts} onChange={setOpts} />
       <SearchPane defaultOpts={opts} onAdded={refreshCart} />

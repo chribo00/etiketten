@@ -1,7 +1,7 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import './ipc';
+import { registerIpcHandlers } from './ipc';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -24,6 +24,8 @@ async function createWindow() {
   } else {
     await win.loadFile(path.join(__dirname, '../../dist/index.html'));
   }
+
+  registerIpcHandlers(win);
 }
 
 app.whenReady().then(createWindow);
