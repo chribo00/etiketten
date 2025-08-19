@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import AdmZip from 'adm-zip';
 import { upsertArticles } from '../db';
+import type { WebContents } from 'electron';
 
 export interface ArticleInput {
   id: string;
@@ -31,7 +32,7 @@ export function parseCsv(line: string, sep = ';'): string[] {
   return line.split(sep).map((s) => s.trim());
 }
 
-export async function importDatanorm(filePathOrZip: string): Promise<number> {
+export async function importDatanorm(filePathOrZip: string, sender?: WebContents): Promise<number> {
   const files: string[] = [];
   if (filePathOrZip.toLowerCase().endsWith('.zip')) {
     const zip = new AdmZip(filePathOrZip);
@@ -47,11 +48,18 @@ export async function importDatanorm(filePathOrZip: string): Promise<number> {
   }
 
   let imported = 0;
+  let total = 0;
+  const allLines: string[][] = [];
   for (const file of files) {
     const lines = fs.readFileSync(file, 'utf8').split(/\r?\n/);
+    const filtered = lines.filter((l) => l.trim().length > 0);
+    total += filtered.length;
+    allLines.push(filtered);
+  }
+
+  for (const lines of allLines) {
     const batch: ArticleInput[] = [];
     for (const line of lines) {
-      if (!line.trim()) continue;
       const cols = parseCsv(line);
       const article: ArticleInput = {
         id: cols[0],
@@ -60,18 +68,20 @@ export async function importDatanorm(filePathOrZip: string): Promise<number> {
         longText: cols[2],
         ean: cols[3],
         listPrice: parseFloat(cols[4] || '0'),
-        uom: cols[5] || 'Stk'
+        uom: cols[5] || 'Stk',
       };
       batch.push(article);
       if (batch.length >= 1000) {
         upsertArticles(batch);
         imported += batch.length;
+        sender?.send('import:progress', { processed: imported, total });
         batch.length = 0;
       }
     }
     if (batch.length) {
       upsertArticles(batch);
       imported += batch.length;
+      sender?.send('import:progress', { processed: imported, total });
     }
   }
   return imported;

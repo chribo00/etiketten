@@ -1,22 +1,84 @@
 import React, { useState } from 'react';
 import { Button, Input } from '@fluentui/react-components';
+import type { LabelOptions } from './LabelOptionsPane';
 
-const SearchPane: React.FC = () => {
+interface Props {
+  defaultOpts: LabelOptions;
+  onAdded?: () => void;
+}
+
+const PAGE_SIZE = 50;
+
+const SearchPane: React.FC<Props> = ({ defaultOpts, onAdded }) => {
   const [q, setQ] = useState('');
   const [results, setResults] = useState<any[]>([]);
-  const doSearch = async () => {
-    const res = await window.api.search(q, 0, 20);
+  const [page, setPage] = useState(0);
+  const [qty, setQty] = useState<Record<string, number>>({});
+
+  const load = async (p = page) => {
+    const res = await window.api.search(q, p, PAGE_SIZE);
     setResults(res);
   };
+
+  const doSearch = async () => {
+    setPage(0);
+    await load(0);
+  };
+
+  const add = async (id: string) => {
+    const n = qty[id] || 1;
+    await window.api.cart.add(id, n, defaultOpts);
+    if (onAdded) onAdded();
+  };
+
   return (
     <div>
       <Input value={q} onChange={(_, d) => setQ(d.value)} placeholder="Suche" />
       <Button onClick={doSearch}>Suchen</Button>
-      <ul>
-        {results.map((r) => (
-          <li key={r.id}>{r.shortText}</li>
-        ))}
-      </ul>
+      <table>
+        <thead>
+          <tr>
+            <th>Artikelnummer</th>
+            <th>Kurztext</th>
+            <th>EAN</th>
+            <th>Preis</th>
+            <th>Menge</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {results.map((r) => (
+            <tr key={r.id}>
+              <td>{r.articleNumber}</td>
+              <td>{r.shortText}</td>
+              <td>{r.ean}</td>
+              <td>{r.listPrice}</td>
+              <td>
+                <input
+                  type="number"
+                  min={1}
+                  value={qty[r.id] || 1}
+                  onChange={(e) => setQty({ ...qty, [r.id]: Number(e.target.value) })}
+                  style={{ width: 50 }}
+                />
+              </td>
+              <td>
+                <Button size="small" onClick={() => add(r.id)}>
+                  + Warenkorb
+                </Button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div>
+        <Button onClick={async () => { const p = Math.max(0, page - 1); setPage(p); await load(p); }} disabled={page === 0}>
+          Zurück
+        </Button>
+        <Button onClick={async () => { const p = page + 1; setPage(p); await load(p); }} disabled={results.length < PAGE_SIZE}>
+          Weiter
+        </Button>
+      </div>
     </div>
   );
 };

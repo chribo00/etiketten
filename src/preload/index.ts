@@ -8,12 +8,16 @@ const api = {
     add: (articleId: string, qty: number, opts: any) => ipcRenderer.invoke('cart:add', { articleId, qty, opts }),
     update: (id: string, patch: any) => ipcRenderer.invoke('cart:update', { id, patch }),
     remove: (id: string) => ipcRenderer.invoke('cart:remove', id),
-    clear: () => ipcRenderer.invoke('cart:clear')
+    clear: () => ipcRenderer.invoke('cart:clear'),
   },
   labels: {
-    generate: (items: any[]) => ipcRenderer.invoke('labels:generate', items)
+    generate: (items: any[]) => ipcRenderer.invoke('labels:generate', items),
   },
-  openExternal: (path: string) => ipcRenderer.invoke('shell:open', path)
+  shell: {
+    open: (path: string) => ipcRenderer.invoke('shell:open', path),
+  },
+  onImportProgress: (cb: (data: any) => void) =>
+    ipcRenderer.on('import:progress', (_e, data) => cb(data)),
 };
 
 contextBridge.exposeInMainWorld('api', api);

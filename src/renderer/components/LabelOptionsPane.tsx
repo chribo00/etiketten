@@ -1,15 +1,22 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Checkbox } from '@fluentui/react-components';
 
-const LabelOptionsPane: React.FC = () => {
-  const [opts, setOpts] = useState({
-    showArticleNumber: true,
-    showEan: true,
-    showShortText: true,
-    showListPrice: true,
-    showImage: false,
-  });
-  const toggle = (key: keyof typeof opts) => (_: any, data: any) => setOpts({ ...opts, [key]: data.checked });
+export interface LabelOptions {
+  showArticleNumber: boolean;
+  showEan: boolean;
+  showShortText: boolean;
+  showListPrice: boolean;
+  showImage: boolean;
+}
+
+interface Props {
+  opts: LabelOptions;
+  onChange: (opts: LabelOptions) => void;
+}
+
+const LabelOptionsPane: React.FC<Props> = ({ opts, onChange }) => {
+  const toggle = (key: keyof LabelOptions) => (_: any, data: any) =>
+    onChange({ ...opts, [key]: !!data.checked });
   return (
     <div>
       <Checkbox label="Artikelnummer" checked={opts.showArticleNumber} onChange={toggle('showArticleNumber')} />
