@@ -12,8 +12,8 @@ export const PrintOptionsSchema = z.object({
   showImage: z.boolean().optional(),
 });
 
-ipcMain.handle('datanorm:import', async (_e, p: string) => {
-  return importDatanorm(z.string().parse(p));
+ipcMain.handle('datanorm:import', async (e, p: string) => {
+  return importDatanorm(z.string().parse(p), e.sender);
 });
 
 ipcMain.handle('articles:search', (_e, payload) => {

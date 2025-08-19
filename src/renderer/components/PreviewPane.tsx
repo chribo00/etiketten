@@ -1,15 +1,23 @@
 import React from 'react';
 import LabelPreview from './LabelPreview';
 import { Button } from '@fluentui/react-components';
+import type { LabelOptions } from './LabelOptionsPane';
 
-const PreviewPane: React.FC = () => {
+interface Props {
+  opts: LabelOptions;
+}
+
+const PreviewPane: React.FC<Props> = ({ opts }) => {
   const generate = async () => {
     const cart = await window.api.cart.get();
-    await window.api.labels.generate(cart);
+    if (!cart.length) return;
+    const p = await window.api.labels.generate(cart);
+    alert(`PDF gespeichert unter ${p}`);
+    await window.api.shell.open(p);
   };
   return (
     <div>
-      <LabelPreview />
+      <LabelPreview opts={opts} />
       <Button onClick={generate}>PDF erzeugen</Button>
     </div>
   );
