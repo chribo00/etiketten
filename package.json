@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "npm run build:preload && concurrently -k \"npm:dev:renderer\" \"npm:dev:main\"",
     "dev:renderer": "vite --config vite.config.mts",
-    "dev:main": "wait-on http://localhost:5173 && cross-env TS_NODE_PROJECT=tsconfig.json NODE_OPTIONS=\"-r ts-node/register/transpile-only -r source-map-support/register\" electron .",
+    "dev:main": "wait-on http://localhost:5173 && cross-env TS_NODE_PROJECT=tsconfig.json TS_NODE_COMPILER_OPTIONS={\"module\":\"CommonJS\"} NODE_OPTIONS=\"--require ts-node/register/transpile-only --require source-map-support/register\" electron .",
     "build:preload": "tsc src/preload.ts --outDir build --module commonjs --target ES2020 --esModuleInterop",
     "build:renderer": "vite build",
     "start": "electron .",
@@ -60,12 +60,18 @@
       "package.json"
     ],
     "extraResources": [
-      { "from": "assets", "to": "assets" }
+      {
+        "from": "assets",
+        "to": "assets"
+      }
     ],
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
     },
-    "win": { "target": "nsis", "icon": "assets/icon.ico" }
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    }
   }
 }
