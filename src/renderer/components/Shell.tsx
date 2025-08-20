@@ -25,7 +25,7 @@ const Shell: React.FC = () => {
     <div>
       {!window.bridge && (
         <div style={{ background: '#fdd835', padding: '8px', marginBottom: '8px' }}>
-          Bridge nicht initialisiert – bitte die Electron-App starten (nicht im Browser testen).
+          Bridge nicht initialisiert – bitte als Electron-App starten.
         </div>
       )}
       <h1>Etiketten</h1>

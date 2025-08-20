@@ -30,8 +30,7 @@ const ImportPane: React.FC = () => {
       setIsImporting(false);
     }
   };
-  const disabled =
-    !window.bridge?.ready || !window.bridge?.importDatanorm || !file || isImporting;
+  const disabled = !window.bridge?.ready || !file || isImporting;
   const pct = progress?.total ? Math.round((progress.current / progress.total) * 100) : undefined;
 
   return (

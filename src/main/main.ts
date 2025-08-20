@@ -1,10 +1,8 @@
 import { app, BrowserWindow } from 'electron';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
-import { registerIpc } from './ipc';
+import path from 'path';
+import { registerIpc } from './ipc/index';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const preloadPath = join(__dirname, 'preload.js');
+const preloadPath = path.resolve(__dirname, '../../build/preload.js');
 
 async function createWindow() {
   const win = new BrowserWindow({
@@ -23,7 +21,7 @@ async function createWindow() {
     await win.loadURL('http://localhost:5173');
     win.webContents.openDevTools();
   } else {
-    await win.loadFile(join(__dirname, '../../dist/index.html'));
+    await win.loadFile(path.join(__dirname, '../../dist/index.html'));
   }
 }
 
