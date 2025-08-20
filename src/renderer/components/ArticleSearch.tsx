@@ -123,10 +123,7 @@ const ArticleSearch: React.FC = () => {
           <table>
             <thead>
               <tr>
-                <th
-                  onClick={() => toggleSort('articleNumber')}
-                  style={{ cursor: 'pointer' }}
-                >
+                <th onClick={() => toggleSort('articleNumber')} style={{ cursor: 'pointer' }}>
                   Artikelnummer
                   {sortBy === 'articleNumber'
                     ? sortDir === 'ASC'
@@ -135,7 +132,7 @@ const ArticleSearch: React.FC = () => {
                     : ''}
                 </th>
                 <th onClick={() => toggleSort('name')} style={{ cursor: 'pointer' }}>
-                  Kurztext
+                  Name
                   {sortBy === 'name'
                     ? sortDir === 'ASC'
                       ? ' ▲'
@@ -151,15 +148,19 @@ const ArticleSearch: React.FC = () => {
                       : ' ▼'
                     : ''}
                 </th>
+                <th>Einheit</th>
+                <th>Gruppe</th>
               </tr>
             </thead>
             <tbody>
               {items.map((it) => (
-                <tr key={it.id}>
+                <tr key={it.articleNumber}>
                   <td>{it.articleNumber || ''}</td>
                   <td>{it.name}</td>
                   <td>{it.ean || ''}</td>
                   <td>{it.price != null ? currency.format(it.price) : '–'}</td>
+                  <td>{it.unit || ''}</td>
+                  <td>{it.productGroup || ''}</td>
                 </tr>
               ))}
             </tbody>
