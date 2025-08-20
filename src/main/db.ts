@@ -12,6 +12,9 @@ const db = new Database(dbPath);
 ensureSchema(db);
 console.log('Schema OK');
 
+// ensure index on article name for faster searches
+db.exec(`CREATE INDEX IF NOT EXISTS idx_articles_name ON articles(name);`);
+
 db.exec(`
 CREATE TABLE IF NOT EXISTS cart(
   id TEXT PRIMARY KEY,
@@ -61,10 +64,37 @@ export function upsertArticles(batch: any[]) {
   tx(batch);
 }
 
-export function searchArticles(q: string, limit = 50, offset = 0) {
-  const stmt = db.prepare(`SELECT * FROM articles WHERE articleNumber LIKE ? OR name LIKE ? OR ean LIKE ? LIMIT ? OFFSET ?;`);
-  const pattern = `%${q}%`;
-  return stmt.all(pattern, pattern, pattern, limit, offset);
+export function searchArticles(opts: {
+  text?: string;
+  limit?: number;
+  offset?: number;
+  sortBy?: 'name' | 'articleNumber' | 'price';
+  sortDir?: 'ASC' | 'DESC';
+}) {
+  const text = opts.text?.trim();
+  const limit = typeof opts.limit === 'number' ? opts.limit : 50;
+  const offset = typeof opts.offset === 'number' ? opts.offset : 0;
+  const sortBy = ['name', 'articleNumber', 'price'].includes(opts.sortBy || '')
+    ? opts.sortBy!
+    : 'name';
+  const sortDir = opts.sortDir === 'DESC' ? 'DESC' : 'ASC';
+
+  const where = text
+    ? 'WHERE (name LIKE ? COLLATE NOCASE OR articleNumber LIKE ? COLLATE NOCASE OR ean LIKE ? COLLATE NOCASE)'
+    : '';
+  const params = text ? [`%${text}%`, `%${text}%`, `%${text}%`] : [];
+
+  const totalStmt = db.prepare(
+    `SELECT COUNT(*) as count FROM articles ${where}`,
+  );
+  const total = (totalStmt.get(...params) as any).count as number;
+
+  const itemsStmt = db.prepare(
+    `SELECT id, articleNumber, ean, name, price FROM articles ${where} ORDER BY ${sortBy} ${sortDir} LIMIT ? OFFSET ?`,
+  );
+  const items = itemsStmt.all(...params, limit, offset);
+
+  return { items, total };
 }
 
 export function getArticle(id: number) {

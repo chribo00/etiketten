@@ -16,6 +16,13 @@ declare global {
       onImportProgress?: (
         cb: (p: { phase: string; current: number; total?: number }) => void,
       ) => () => void;
+      searchArticles?: (opts: {
+        text?: string;
+        limit?: number;
+        offset?: number;
+        sortBy?: 'name' | 'articleNumber' | 'price';
+        sortDir?: 'ASC' | 'DESC';
+      }) => Promise<{ items: any[]; total: number; message?: string }>;
       [key: string]: any;
     };
   }

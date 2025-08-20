@@ -16,6 +16,7 @@ const bridge = {
   ready: true,
   importDatanorm: (payload: DatanormImportPayload) =>
     ipcRenderer.invoke('datanorm:import', payload),
+  searchArticles: (opts: any) => ipcRenderer.invoke('articles:search', opts),
   onImportProgress: (
     cb: (p: { phase: string; current: number; total?: number }) => void,
   ): (() => void) => {

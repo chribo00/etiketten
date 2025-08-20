@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import ImportPane from './ImportPane';
-import SearchPane from './SearchPane';
+import ArticleSearch from './ArticleSearch';
 import CartPane from './CartPane';
 import LabelOptionsPane, { LabelOptions } from './LabelOptionsPane';
 import PreviewPane from './PreviewPane';
@@ -30,8 +30,8 @@ const Shell: React.FC = () => {
       )}
       <h1>Etiketten</h1>
       <ImportPane />
+      <ArticleSearch />
       <LabelOptionsPane opts={opts} onChange={setOpts} />
-      <SearchPane defaultOpts={opts} onAdded={refreshCart} />
       <CartPane onChange={refreshCart} />
       <div>Warenkorb: {cartCount} Artikel</div>
       <PreviewPane opts={opts} />
