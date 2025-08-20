@@ -6,7 +6,7 @@ import { registerLabelsHandlers } from './labels';
 import { registerDialogHandlers } from './dialog';
 import { registerShellHandlers } from './shell';
 
-export function registerIpcHandlers(win: BrowserWindow) {
+export function registerIpcHandlers(win: BrowserWindow, _db: unknown) {
   registerDatanormHandlers(win);
   registerArticlesHandlers();
   registerCartHandlers();

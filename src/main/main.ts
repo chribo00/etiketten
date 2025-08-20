@@ -1,7 +1,8 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { registerIpcHandlers } from './ipc';
+import { registerIpcHandlers } from './ipc/index.js';
+import db from './db';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -25,7 +26,7 @@ async function createWindow() {
     await win.loadFile(path.join(__dirname, '../../dist/index.html'));
   }
 
-  registerIpcHandlers(win);
+  registerIpcHandlers(win, db);
 }
 
 app.whenReady().then(createWindow);
