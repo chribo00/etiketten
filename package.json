@@ -3,13 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "main": "src/main/main.ts",
-  "type": "module",
   "scripts": {
     "dev": "npm run build:preload && concurrently -k \"npm:dev:renderer\" \"npm:dev:main\"",
-    "dev:main": "wait-on http://localhost:5173 && cross-env NODE_OPTIONS=\"-r ts-node/register/transpile-only -r source-map-support/register\" TS_NODE_PROJECT=tsconfig.json electron .",
-    "build:preload": "tsc src/preload.ts --outDir src/main --module NodeNext --target ES2020 --esModuleInterop",
-    "dev:renderer": "vite --config vite.config.ts",
+    "dev:renderer": "vite --config vite.config.mts",
+    "dev:main": "wait-on http://localhost:5173 && cross-env TS_NODE_PROJECT=tsconfig.json NODE_OPTIONS=\"-r ts-node/register/transpile-only -r source-map-support/register\" electron .",
+    "build:preload": "tsc src/preload.ts --outDir build --module commonjs --target ES2020 --esModuleInterop",
     "build:renderer": "vite build",
+    "start": "electron .",
     "pack": "electron-builder --dir",
     "dist": "npm run build:renderer && electron-builder",
     "rebuild-native": "electron-rebuild -f -w better-sqlite3 -w sharp",
@@ -56,6 +56,7 @@
     "files": [
       "dist/**",
       "src/main/**",
+      "build/**",
       "package.json"
     ],
     "extraResources": [
