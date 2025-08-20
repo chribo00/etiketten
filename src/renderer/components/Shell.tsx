@@ -24,7 +24,7 @@ const Shell: React.FC = () => {
   return (
     <div>
       <h1>Etiketten</h1>
-      {!window.api && <div>Bridge nicht initialisiert</div>}
+      <div>{window.api ? 'Bridge initialisiert' : 'Bridge nicht initialisiert'}</div>
       <ImportPane />
       <LabelOptionsPane opts={opts} onChange={setOpts} />
       <SearchPane defaultOpts={opts} onAdded={refreshCart} />

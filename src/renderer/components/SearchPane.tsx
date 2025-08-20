@@ -35,7 +35,7 @@ const SearchPane: React.FC<Props> = ({ defaultOpts, onAdded }) => {
 
   return (
     <div>
-      {!apiReady && <div>Bridge nicht initialisiert</div>}
+      <div>{apiReady ? 'Bridge initialisiert' : 'Bridge nicht initialisiert'}</div>
       <Input value={q} onChange={(_, d) => setQ(d.value)} placeholder="Suche" />
       <Button onClick={doSearch} disabled={!apiReady}>
         Suchen

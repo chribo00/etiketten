@@ -5,8 +5,9 @@
   "main": "src/main/main.ts",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k -n MAIN,RENDERER \"npm:dev:main\" \"npm:dev:renderer\"",
+    "dev": "npm run build:preload && concurrently -k -n MAIN,RENDERER \"npm:dev:main\" \"npm:dev:renderer\"",
     "dev:main": "cross-env NODE_OPTIONS=\"-r ts-node/register/transpile-only -r source-map-support/register\" TS_NODE_PROJECT=tsconfig.json electron .",
+    "build:preload": "tsc src/preload.ts --outDir src/main --module NodeNext --target ES2020 --esModuleInterop",
     "dev:renderer": "vite --config vite.config.ts",
     "build:renderer": "vite build",
     "pack": "electron-builder --dir",
@@ -37,6 +38,7 @@
     "ts-node": "^10.9.1",
     "vite": "^5.0.0",
     "concurrently": "^8.0.0",
+    "cross-env": "^7.0.0",
     "wait-on": "^7.0.0",
     "electron-builder": "^24.0.0",
     "electron-rebuild": "^3.2.0",
@@ -54,7 +56,6 @@
     "files": [
       "dist/**",
       "src/main/**",
-      "src/preload/**",
       "package.json"
     ],
     "extraResources": [

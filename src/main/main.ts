@@ -1,8 +1,7 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { registerIpcHandlers } from './ipc/index.js';
-import db from './db';
+import { registerIpc } from './ipc';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -12,7 +11,7 @@ async function createWindow() {
     height: 800,
     title: 'Etiketten',
     webPreferences: {
-      preload: path.join(__dirname, '../preload/index.js'),
+      preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
     },
@@ -26,10 +25,12 @@ async function createWindow() {
     await win.loadFile(path.join(__dirname, '../../dist/index.html'));
   }
 
-  registerIpcHandlers(win, db);
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  registerIpc();
+  createWindow();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
