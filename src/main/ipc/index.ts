@@ -1,13 +1,12 @@
 import { ipcMain } from 'electron';
 import path from 'path';
 import { importDatanorm } from '../datanorm/parser';
-import { registerArticlesHandlers } from './articles';
+import { searchArticles } from '../db';
 import { registerCartHandlers } from './cart';
 import { registerLabelsHandlers } from './labels';
 import { registerShellHandlers } from './shell';
 
 export function registerIpcHandlers() {
-  registerArticlesHandlers();
   registerCartHandlers();
   registerLabelsHandlers();
   registerShellHandlers();
@@ -40,6 +39,27 @@ export function registerIpcHandlers() {
       console.error('import failed after', count, 'items');
       if (first) console.error('first failed item', first);
       throw err;
+    }
+  });
+
+  ipcMain.handle('articles:search', async (_evt, opts) => {
+    try {
+      const limit = Math.max(1, Math.min(200, Number(opts?.limit ?? 50)));
+      const offset = Math.max(0, Number(opts?.offset ?? 0));
+      const sortBy = ['name', 'articleNumber', 'price'].includes(opts?.sortBy)
+        ? opts.sortBy
+        : 'name';
+      const sortDir = opts?.sortDir === 'DESC' ? 'DESC' : 'ASC';
+      return searchArticles({
+        text: opts?.text,
+        limit,
+        offset,
+        sortBy,
+        sortDir,
+      });
+    } catch (err: any) {
+      console.error('articles:search failed', err);
+      return { items: [], total: 0, message: err?.message || 'Unbekannter Fehler' };
     }
   });
 }
