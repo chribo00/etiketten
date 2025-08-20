@@ -15,7 +15,7 @@ const Shell: React.FC = () => {
   });
   const [cartCount, setCartCount] = useState(0);
   const refreshCart = async () => {
-    const c = (await window.api?.cart?.get?.()) || [];
+    const c = (await window.bridge?.cart?.get?.()) || [];
     setCartCount(c.length);
   };
   useEffect(() => {
@@ -23,8 +23,13 @@ const Shell: React.FC = () => {
   }, []);
   return (
     <div>
+      {!window.bridge && (
+        <div style={{ background: '#fdd835', padding: '8px', marginBottom: '8px' }}>
+          Bridge nicht initialisiert – bitte die Electron-App starten (nicht im Browser testen).
+        </div>
+      )}
       <h1>Etiketten</h1>
-      <div>{window.api ? 'Bridge initialisiert' : 'Bridge nicht initialisiert'}</div>
+      <div>{window.bridge?.ready ? 'Bridge initialisiert' : 'Bridge nicht initialisiert'}</div>
       <ImportPane />
       <LabelOptionsPane opts={opts} onChange={setOpts} />
       <SearchPane defaultOpts={opts} onAdded={refreshCart} />

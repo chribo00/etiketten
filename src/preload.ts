@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
-const api = {
+const bridge = {
+  ready: true,
   dialog: {
     openDatanorm: async (): Promise<void> => {
       try {
@@ -11,7 +12,7 @@ const api = {
       }
     },
   },
-  importDatanorm: async (opts: { useDialog?: boolean; fileBuffer?: ArrayBuffer }): Promise<{ imported: number }> => {
+  importDatanorm: async (opts: { fileBuffer?: ArrayBuffer; useDialog?: boolean }): Promise<{ imported: number }> => {
     try {
       if (opts?.useDialog) {
         await ipcRenderer.invoke('datanorm:openDialog');
@@ -44,6 +45,10 @@ const api = {
   },
 };
 
-contextBridge.exposeInMainWorld('api', api);
+try {
+  contextBridge.exposeInMainWorld('bridge', bridge);
+} catch (err) {
+  console.warn('exposeInMainWorld failed', err);
+}
 
-export type Api = typeof api;
+export type Bridge = typeof bridge;

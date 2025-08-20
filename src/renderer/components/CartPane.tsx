@@ -8,7 +8,7 @@ interface Props {
 const CartPane: React.FC<Props> = ({ onChange }) => {
   const [items, setItems] = useState<any[]>([]);
   const load = async () => {
-    const list = (await window.api?.cart?.get?.()) || [];
+    const list = (await window.bridge?.cart?.get?.()) || [];
     setItems(list);
     if (onChange) onChange();
   };
@@ -17,13 +17,13 @@ const CartPane: React.FC<Props> = ({ onChange }) => {
   }, []);
   return (
     <div>
-      <div>{window.api ? 'Bridge initialisiert' : 'Bridge nicht initialisiert'}</div>
+      <div>{window.bridge?.ready ? 'Bridge initialisiert' : 'Bridge nicht initialisiert'}</div>
       <Button
         onClick={async () => {
-          await window.api?.cart?.clear?.();
+          await window.bridge?.cart?.clear?.();
           await load();
         }}
-        disabled={!window.api}
+        disabled={!window.bridge?.ready}
       >
         Leeren
       </Button>
