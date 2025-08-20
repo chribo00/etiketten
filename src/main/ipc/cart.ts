@@ -8,7 +8,7 @@ export function registerCartHandlers() {
 
   ipcMain.handle(IPC_CHANNELS.cart.add, (_e, payload) => {
     const { articleId, qty, opts } = CartAddSchema.parse(payload);
-    return addToCart(articleId, qty, opts);
+    return addToCart(Number(articleId), qty, opts);
   });
 
   ipcMain.handle(IPC_CHANNELS.cart.update, (_e, payload) => {
