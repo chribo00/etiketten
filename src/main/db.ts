@@ -47,13 +47,62 @@ CREATE TABLE IF NOT EXISTS cart(
 );
 `);
 
-const upsertArticle = db.prepare(`INSERT INTO articles (id, articleNumber, name, shortText, longText, ean, listPrice, imagePath, brand, groupCode, uom, createdAt, updatedAt)
-VALUES (@id, @articleNumber, @name, @shortText, @longText, @ean, @listPrice, @imagePath, @brand, @groupCode, @uom, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-ON CONFLICT(id) DO UPDATE SET articleNumber=excluded.articleNumber, name=excluded.name, shortText=excluded.shortText, longText=excluded.longText, ean=excluded.ean, listPrice=excluded.listPrice, imagePath=excluded.imagePath, brand=excluded.brand, groupCode=excluded.groupCode, uom=excluded.uom, updatedAt=CURRENT_TIMESTAMP;`);
+const upsertArticle = db.prepare(
+  `INSERT INTO articles (id, articleNumber, name, shortText, longText, ean, listPrice, imagePath, brand, groupCode, uom, createdAt, updatedAt)
+VALUES (
+  @id,
+  @articleNumber,
+  COALESCE(NULLIF(@name, ''), '(ohne Bezeichnung)'),
+  @shortText,
+  @longText,
+  @ean,
+  @listPrice,
+  @imagePath,
+  @brand,
+  @groupCode,
+  @uom,
+  CURRENT_TIMESTAMP,
+  CURRENT_TIMESTAMP
+)
+ON CONFLICT(id) DO UPDATE SET
+  articleNumber=excluded.articleNumber,
+  name=COALESCE(NULLIF(excluded.name, ''), '(ohne Bezeichnung)'),
+  shortText=excluded.shortText,
+  longText=excluded.longText,
+  ean=excluded.ean,
+  listPrice=excluded.listPrice,
+  imagePath=excluded.imagePath,
+  brand=excluded.brand,
+  groupCode=excluded.groupCode,
+  uom=excluded.uom,
+  updatedAt=CURRENT_TIMESTAMP;`
+);
 
 export function upsertArticles(batch: any[]) {
   const tx = db.transaction((rows: any[]) => {
-    for (const row of rows) upsertArticle.run(row);
+    for (const item of rows) {
+      const mapped = {
+        id: item.id,
+        articleNumber: item.articleNumber || item.artikelnummer || item.id || '',
+        name: (item.name || item.shortText || item.kurztext || item.title || item.description || '')
+          .toString()
+          .trim(),
+        shortText: item.shortText ?? item.kurztext ?? '',
+        longText: item.longText ?? item.description ?? '',
+        ean: item.ean || null,
+        listPrice: Number(item.price ?? item.listPrice ?? 0),
+        imagePath: item.imagePath || item.image || null,
+        brand: item.brand || null,
+        groupCode: item.groupCode || null,
+        uom: item.uom || 'Stk',
+      };
+      try {
+        upsertArticle.run(mapped);
+      } catch (err) {
+        (err as any).item = mapped;
+        throw err;
+      }
+    }
   });
   tx(batch);
 }

@@ -13,6 +13,7 @@ const ImportPane: React.FC = () => {
   const [progress, setProgress] = useState<{ phase: string; current: number; total?: number } | undefined>();
   const [isImporting, setIsImporting] = useState(false);
   const [imported, setImported] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const off = window.bridge?.onImportProgress?.((p) => setProgress(p));
@@ -40,10 +41,10 @@ const ImportPane: React.FC = () => {
     setIsImporting(true);
     setProgress(undefined);
     setImported(null);
+    setError(null);
     try {
       const res = await window.bridge.importDatanorm({
         filePath: selectedFile.filePath,
-        name: selectedFile.name,
         mapping: {
           articleNumber: flags.articleNumber,
           ean: flags.ean,
@@ -53,8 +54,10 @@ const ImportPane: React.FC = () => {
         },
       });
       if (res?.imported !== undefined) setImported(res.imported);
-    } catch (err) {
+    } catch (err: any) {
       console.error('importDatanorm failed', err);
+      const msg = err?.message || 'Unbekannter Fehler';
+      setError(`${msg} (Feld name)`);
     } finally {
       setIsImporting(false);
     }
@@ -81,7 +84,8 @@ const ImportPane: React.FC = () => {
           {pct !== undefined ? `${pct}% (${progress.current}/${progress.total})` : `${progress.current}`}
         </div>
       )}
-      {imported !== null && <div>Import erfolgreich: {imported} Artikel</div>}
+      {imported !== null && !error && <div>Import abgeschlossen ({imported} Artikel)</div>}
+      {error && <div style={{ color: 'red' }}>{error}</div>}
     </div>
   );
 };

@@ -34,8 +34,11 @@ export function registerIpcHandlers() {
     try {
       const imported = await importDatanorm(filePath, evt.sender);
       return { imported, name: safeName, path: filePath, mapping };
-    } catch (err) {
-      console.error('import failed', err);
+    } catch (err: any) {
+      const count = err?.imported ?? 0;
+      const first = err?.item ?? err?.items?.[0];
+      console.error('import failed after', count, 'items');
+      if (first) console.error('first failed item', first);
       throw err;
     }
   });
