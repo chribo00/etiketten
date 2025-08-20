@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Input, Checkbox } from '@fluentui/react-components';
 import { z } from 'zod';
-import { isValidEan13, toEan13FromArticleNumber } from '../utils/ean';
 import { generateLabelsPdf } from '../lib/labelsPdf';
 import type { LabelConfig } from '../lib/labels';
+import { fromArticleToEan13, isValidEan13, onlyDigits } from '../lib/labels';
 
 const currency = new Intl.NumberFormat('de-AT', {
   style: 'currency',
@@ -39,15 +39,23 @@ const ArticleSearch: React.FC = () => {
       await generateLabelsPdf(cart, { ...templates[template], barcodeH });
     };
 
-    const [newArt, setNewArt] = useState({
-      articleNumber: '',
-      name: '',
-      ean: '',
-      price: '',
-      unit: '',
-      addToCart: true,
-    });
+    const [artnr, setArtnr] = useState('');
+    const [name, setName] = useState('');
+    const [ean, setEan] = useState('');
+    const [price, setPrice] = useState('');
+    const [unit, setUnit] = useState('');
+    const [addToCart, setAddToCart] = useState(true);
+    const [autoEan, setAutoEan] = useState(true);
+    const [eanDirty, setEanDirty] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
+
+    useEffect(() => {
+      if (!autoEan || eanDirty) return;
+      const t = setTimeout(() => {
+        setEan(fromArticleToEan13(artnr) || '');
+      }, 200);
+      return () => clearTimeout(t);
+    }, [artnr, autoEan, eanDirty]);
 
   const loadInfo = async () => {
     const info = await window.bridge?.dbInfo?.();
@@ -177,7 +185,7 @@ const ArticleSearch: React.FC = () => {
       const newItems = items.map((it) => {
         const key = getKey(it);
         if (selectedIds.has(key) && (!it.ean || !isValidEan13(it.ean)) && it.articleNumber) {
-          const e = toEan13FromArticleNumber(it.articleNumber);
+          const e = fromArticleToEan13(it.articleNumber);
           if (e) {
             gen.add(key);
             return { ...it, ean: e };
@@ -192,26 +200,46 @@ const ArticleSearch: React.FC = () => {
     const createSchema = z.object({
       articleNumber: z.string().optional(),
       name: z.string().min(1),
-      ean: z.string().optional().refine((v) => !v || isValidEan13(v), {
-        message: 'EAN-13 ungültig',
-      }),
-      price: z.preprocess((v) => (v === '' ? undefined : Number(v)), z.number().nonnegative().optional()),
+      ean: z
+        .string()
+        .optional()
+        .refine((v) => !v || isValidEan13(v), {
+          message: 'EAN-13 ungültig',
+        }),
+      price: z.preprocess(
+        (v) => (v === '' ? undefined : Number(v)),
+        z.number().nonnegative().optional(),
+      ),
       unit: z.string().optional(),
     });
 
     const handleCreate = async () => {
-      const parsed = createSchema.safeParse(newArt);
+      const data = {
+        articleNumber: artnr || undefined,
+        name,
+        ean: autoEan && !ean ? fromArticleToEan13(artnr) || '' : ean,
+        price,
+        unit,
+      };
+      const parsed = createSchema.safeParse(data);
       if (!parsed.success) {
         setFormError(parsed.error.issues[0].message);
         return;
       }
       setFormError(null);
-      const payload = parsed.data;
+      const payload = { ...parsed.data, price: parsed.data.price ?? 0 };
       const res = await window.bridge?.customCreate?.(payload);
-      if (res && newArt.addToCart) {
+      if (res && addToCart) {
         setCart((prev) => [...prev, { source: 'custom', id: res.id, ...payload, qty: 1 }]);
       }
-      setNewArt({ articleNumber: '', name: '', ean: '', price: '', unit: '', addToCart: true });
+      setArtnr('');
+      setName('');
+      setEan('');
+      setPrice('');
+      setUnit('');
+      setAddToCart(true);
+      setAutoEan(true);
+      setEanDirty(false);
       await refreshList();
     };
 
@@ -358,33 +386,82 @@ const ArticleSearch: React.FC = () => {
             <h3>Artikel manuell anlegen</h3>
             {formError && <div style={{ color: 'red' }}>{formError}</div>}
             <Input
-              value={newArt.articleNumber}
-              onChange={(_, d) => setNewArt({ ...newArt, articleNumber: d.value })}
+              value={artnr}
+              onChange={(_, d) => setArtnr(d.value)}
               placeholder="Artikelnummer (optional)"
             />
             <Input
-              value={newArt.name}
-              onChange={(_, d) => setNewArt({ ...newArt, name: d.value })}
+              value={name}
+              onChange={(_, d) => setName(d.value)}
               placeholder="Name"
             />
-            <Input
-              value={newArt.ean}
-              onChange={(_, d) => setNewArt({ ...newArt, ean: d.value })}
-              placeholder="EAN (optional)"
+            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+              <Input
+                value={ean}
+                onChange={(_, d) => {
+                  setEanDirty(true);
+                  setEan(onlyDigits(d.value));
+                }}
+                placeholder="EAN (optional)"
+                style={
+                  ean
+                    ? { borderColor: isValidEan13(ean) ? 'green' : 'red' }
+                    : undefined
+                }
+              />
+              {!autoEan && (
+                <Button
+                  onClick={() => {
+                    setEan(fromArticleToEan13(artnr) || '');
+                    setEanDirty(false);
+                  }}
+                  title="EAN neu aus Artikelnummer berechnen"
+                >
+                  ↻ aus Art.-Nr.
+                </Button>
+              )}
+            </div>
+            <div
+              style={{
+                fontSize: '0.8em',
+                color: ean
+                  ? isValidEan13(ean)
+                    ? 'green'
+                    : 'red'
+                  : undefined,
+              }}
+            >
+              {ean === ''
+                ? 'EAN leer (optional)'
+                : isValidEan13(ean)
+                ? 'EAN gültig ✓'
+                : 'EAN ungültig (13 Ziffern, Prüfziffer beachten)'}
+            </div>
+            <Checkbox
+              checked={autoEan}
+              onChange={(_, d) => {
+                const checked = !!d.checked;
+                setAutoEan(checked);
+                if (checked) {
+                  setEanDirty(false);
+                  setEan(fromArticleToEan13(artnr) || '');
+                }
+              }}
+              label="EAN automatisch aus Art.-Nr."
             />
             <Input
-              value={newArt.price}
-              onChange={(_, d) => setNewArt({ ...newArt, price: d.value })}
+              value={price}
+              onChange={(_, d) => setPrice(d.value)}
               placeholder="Preis (optional)"
             />
             <Input
-              value={newArt.unit}
-              onChange={(_, d) => setNewArt({ ...newArt, unit: d.value })}
+              value={unit}
+              onChange={(_, d) => setUnit(d.value)}
               placeholder="Einheit (optional)"
             />
             <Checkbox
-              checked={newArt.addToCart}
-              onChange={(_, d) => setNewArt({ ...newArt, addToCart: d.checked })}
+              checked={addToCart}
+              onChange={(_, d) => setAddToCart(d.checked)}
               label="nach Anlage in Warenkorb übernehmen"
             />
             <Button onClick={handleCreate}>Anlegen</Button>
