@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Button, Input, Checkbox } from '@fluentui/react-components';
 import { z } from 'zod';
 import { isValidEan13, toEan13FromArticleNumber } from '../utils/ean';
-import { generateLabelsPdf } from './LabelsPdf';
+import { generateLabelsPdf } from '../lib/labelsPdf';
+import type { LabelConfig } from '../lib/labels';
 
 const currency = new Intl.NumberFormat('de-AT', {
   style: 'currency',
@@ -24,6 +25,19 @@ const ArticleSearch: React.FC = () => {
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [generatedEans, setGeneratedEans] = useState<Set<string>>(new Set());
     const [cart, setCart] = useState<any[]>([]);
+
+    const templates: Record<string, Partial<LabelConfig>> = {
+      'a4-3x8': {},
+      'a4-3x7': { cols: 3, rows: 7, labelW: 70, labelH: 37 },
+      'a4-2x7': { cols: 2, rows: 7, labelW: 99, labelH: 38 },
+    };
+    const [template, setTemplate] = useState<keyof typeof templates>('a4-3x8');
+    const [barcodeH, setBarcodeH] = useState(18);
+
+    const onPdf = async () => {
+      if (!cart.length) return;
+      await generateLabelsPdf(cart, { ...templates[template], barcodeH });
+    };
 
     const [newArt, setNewArt] = useState({
       articleNumber: '',
@@ -399,9 +413,36 @@ const ArticleSearch: React.FC = () => {
               ))}
             </ul>
             {cart.length > 0 && (
-              <div style={{ marginTop: '8px' }}>
-                <Button onClick={() => generateLabelsPdf(cart)}>PDF-Etiketten erzeugen</Button>
-                <Button onClick={() => setCart([])}>Warenkorb leeren</Button>
+              <div
+                style={{
+                  marginTop: '8px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                }}
+              >
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <label>Vorlage:</label>
+                  <select
+                    value={template}
+                    onChange={(e) => setTemplate(e.target.value as keyof typeof templates)}
+                  >
+                    <option value="a4-3x8">A4 3×8 (63,5×38,1)</option>
+                    <option value="a4-3x7">A4 3×7 (70×37)</option>
+                    <option value="a4-2x7">A4 2×7 (99×38)</option>
+                  </select>
+                  <label>BarcodeH:</label>
+                  <input
+                    type="number"
+                    value={barcodeH}
+                    onChange={(e) => setBarcodeH(parseFloat(e.target.value) || 0)}
+                    style={{ width: '60px' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <Button onClick={onPdf}>PDF-Etiketten erzeugen</Button>
+                  <Button onClick={() => setCart([])}>Warenkorb leeren</Button>
+                </div>
               </div>
             )}
           </div>
