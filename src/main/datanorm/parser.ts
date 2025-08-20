@@ -3,7 +3,6 @@ import path from 'path';
 import AdmZip from 'adm-zip';
 import { upsertArticles } from '../db';
 import type { WebContents } from 'electron';
-import { IPC_CHANNELS } from '../../shared/ipc';
 
 export interface ArticleInput {
   id: string;
@@ -75,14 +74,14 @@ export async function importDatanorm(filePathOrZip: string, sender?: WebContents
       if (batch.length >= 1000) {
         upsertArticles(batch);
         imported += batch.length;
-        sender?.send(IPC_CHANNELS.datanorm.importProgress, { processed: imported, total });
+        sender?.send('datanorm:progress', { phase: 'import', current: imported, total });
         batch.length = 0;
       }
     }
     if (batch.length) {
       upsertArticles(batch);
       imported += batch.length;
-      sender?.send(IPC_CHANNELS.datanorm.importProgress, { processed: imported, total });
+      sender?.send('datanorm:progress', { phase: 'import', current: imported, total });
     }
   }
   return imported;

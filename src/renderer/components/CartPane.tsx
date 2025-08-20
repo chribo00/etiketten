@@ -17,7 +17,7 @@ const CartPane: React.FC<Props> = ({ onChange }) => {
   }, []);
   return (
     <div>
-      {!window.api && <div>Bridge nicht initialisiert</div>}
+      <div>{window.api ? 'Bridge initialisiert' : 'Bridge nicht initialisiert'}</div>
       <Button
         onClick={async () => {
           await window.api?.cart?.clear?.();

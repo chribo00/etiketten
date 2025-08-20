@@ -2,9 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Button } from '@fluentui/react-components';
 
 const ImportPane: React.FC = () => {
-  const [selectedPath, setSelectedPath] = useState<string | undefined>();
-  const [fileName, setFileName] = useState<string>('');
-  const [progress, setProgress] = useState<{ processed: number; total?: number } | undefined>();
+  const [file, setFile] = useState<File | null>(null);
+  const [progress, setProgress] = useState<{ phase: string; current: number; total?: number } | undefined>();
   const [isImporting, setIsImporting] = useState(false);
   const [imported, setImported] = useState<number | null>(null);
 
@@ -14,41 +13,44 @@ const ImportPane: React.FC = () => {
   }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (f) {
-      setSelectedPath((f as any).path);
-      setFileName(f.name);
-    } else {
-      setSelectedPath(undefined);
-      setFileName('');
-    }
+    const f = e.target.files?.[0] || null;
+    setFile(f);
   };
 
   const handleImport = async () => {
-    if (!window.api) return;
+    if (!window.api?.importDatanorm) return;
     setIsImporting(true);
     setProgress(undefined);
     setImported(null);
-    const res = await window.api.importDatanorm(!selectedPath, selectedPath);
-    setIsImporting(false);
-    setImported(res?.imported ?? null);
+    try {
+      if (window.api.dialog?.openDatanorm) {
+        const res = await window.api.importDatanorm({ useDialog: true });
+        setImported(res.imported);
+      } else if (file) {
+        const buffer = await file.arrayBuffer();
+        const res = await window.api.importDatanorm({ fileBuffer: buffer });
+        setImported(res.imported);
+      }
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   const canOpenDialog = !!window.api?.dialog?.openDatanorm;
-  const disabled = !window.api || (!selectedPath && !canOpenDialog) || isImporting;
-  const pct = progress?.total ? Math.round((progress.processed / progress.total) * 100) : undefined;
+  const disabled = !window.api?.importDatanorm || (!canOpenDialog && !file) || isImporting;
+  const pct = progress?.total ? Math.round((progress.current / progress.total) * 100) : undefined;
 
   return (
     <div>
-      {!window.api && <div>Bridge nicht initialisiert</div>}
+      <div>{window.api ? 'Bridge initialisiert' : 'Bridge nicht initialisiert'}</div>
       <input type="file" accept=".001,.dat,.txt,.zip" onChange={handleFileChange} />
-      {fileName && <div>{fileName}</div>}
+      {file && <div>{file.name}</div>}
       <Button onClick={handleImport} disabled={disabled}>
         {isImporting ? 'Importiere…' : 'Importieren'}
       </Button>
       {progress && (
         <div>
-          {pct !== undefined ? `${pct}% (${progress.processed}/${progress.total})` : `${progress.processed}`}
+          {pct !== undefined ? `${pct}% (${progress.current}/${progress.total})` : `${progress.current}`}
         </div>
       )}
       {imported !== null && <div>Import erfolgreich: {imported} Artikel</div>}

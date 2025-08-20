@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-Der Preload-Code in `src/preload` wird dabei automatisch nach `src/preload/index.js` gebaut und von Electron geladen.
+Der Preload-Code in `src/preload.ts` wird dabei automatisch nach `src/main/preload.js` gebaut und von Electron geladen.
 
 ## Produktion
 
