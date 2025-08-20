@@ -18,6 +18,9 @@ CREATE TABLE IF NOT EXISTS articles (
 
   const cols = db.prepare(`PRAGMA table_info(articles)`).all() as any[];
   const names = cols.map((c) => c.name);
+  if (!names.includes('ean')) {
+    db.exec(`ALTER TABLE articles ADD COLUMN ean TEXT;`);
+  }
   if (!names.includes('name')) {
     db.exec(`ALTER TABLE articles ADD COLUMN name TEXT NOT NULL DEFAULT '';`);
   }
