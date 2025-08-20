@@ -1,6 +1,6 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'path';
-import { registerIpc } from './ipc/index';
+import { registerIpcHandlers } from './ipc/index';
 
 const preloadPath = path.resolve(__dirname, '../../build/preload.js');
 
@@ -26,7 +26,7 @@ async function createWindow() {
 }
 
 app.whenReady().then(() => {
-  registerIpc();
+  registerIpcHandlers();
   createWindow();
 });
 

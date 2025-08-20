@@ -10,7 +10,7 @@ import { registerShellHandlers } from './shell';
 
 let lastSelectedPath: string | undefined;
 
-export function registerIpc() {
+export function registerIpcHandlers() {
   registerArticlesHandlers();
   registerCartHandlers();
   registerLabelsHandlers();
