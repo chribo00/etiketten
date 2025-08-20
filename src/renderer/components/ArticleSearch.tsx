@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Input } from '@fluentui/react-components';
+import { Button, Input, Checkbox } from '@fluentui/react-components';
+import { z } from 'zod';
+import { isValidEan13, toEan13FromArticleNumber } from '../utils/ean';
+import { generateLabelsPdf } from './LabelsPdf';
 
 const currency = new Intl.NumberFormat('de-AT', {
   style: 'currency',
@@ -14,10 +17,23 @@ const ArticleSearch: React.FC = () => {
   const [sortDir, setSortDir] = useState<'ASC' | 'DESC'>('ASC');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [items, setItems] = useState<any[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loaded, setLoaded] = useState(false);
-  const [dbInfoText, setDbInfoText] = useState('');
+    const [items, setItems] = useState<any[]>([]);
+    const [total, setTotal] = useState(0);
+    const [loaded, setLoaded] = useState(false);
+    const [dbInfoText, setDbInfoText] = useState('');
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [generatedEans, setGeneratedEans] = useState<Set<string>>(new Set());
+    const [cart, setCart] = useState<any[]>([]);
+
+    const [newArt, setNewArt] = useState({
+      articleNumber: '',
+      name: '',
+      ean: '',
+      price: '',
+      unit: '',
+      addToCart: true,
+    });
+    const [formError, setFormError] = useState<string | null>(null);
 
   const loadInfo = async () => {
     const info = await window.bridge?.dbInfo?.();
@@ -29,27 +45,27 @@ const ArticleSearch: React.FC = () => {
     sb: 'name' | 'articleNumber' | 'price' = sortBy,
     sd: 'ASC' | 'DESC' = sortDir,
   ) => {
-    if (!window.bridge?.searchArticles) return;
-    setLoading(true);
-    setError(null);
-    const offset = (p - 1) * pageSize;
-    try {
-      const res = await window.bridge.searchArticles({
-        text: query.trim() || undefined,
-        limit: pageSize,
-        offset,
-        sortBy: sb,
-        sortDir: sd,
-      });
+      if (!window.bridge?.searchAll) return;
+      setLoading(true);
+      setError(null);
+      const offset = (p - 1) * pageSize;
+      try {
+        const res = await window.bridge.searchAll({
+          text: query.trim() || undefined,
+          limit: pageSize,
+          offset,
+          sortBy: sb,
+          sortDir: sd,
+        });
       if (res?.message) {
         setError(res.message);
         setItems([]);
         setTotal(0);
       } else {
-        setItems(res.items || []);
-        setTotal(res.total || 0);
-      }
-    } catch (err: any) {
+          setItems(res.items || []);
+          setTotal(res.total || 0);
+        }
+      } catch (err: any) {
       console.error('searchArticles failed', err);
       setError(err?.message || 'Unbekannter Fehler');
       setItems([]);
@@ -110,33 +126,129 @@ const ArticleSearch: React.FC = () => {
   const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const end = Math.min(total, (page - 1) * pageSize + items.length);
 
-  const apiReady = window.bridge?.ready === true;
+    const apiReady = window.bridge?.ready === true;
+
+    const getKey = (it: any) =>
+      it.source === 'custom' ? `custom:${it.id}` : `import:${it.articleNumber}`;
+
+    const toggleSelect = (key: string) => {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(key)) next.delete(key);
+        else next.add(key);
+        return next;
+      });
+    };
+
+    const addSelectionToCart = () => {
+      const toAdd = items.filter((it) => selectedIds.has(getKey(it)));
+      setCart((prev) => {
+        const next = [...prev];
+        for (const it of toAdd) {
+          const key = getKey(it);
+          const existing = next.find((c) =>
+            c.source === it.source &&
+            (c.source === 'custom' ? c.id === it.id : c.articleNumber === it.articleNumber),
+          );
+          if (existing) existing.qty += 1;
+          else next.push({ ...it, qty: 1, generated: generatedEans.has(key) });
+        }
+        return next;
+      });
+      setSelectedIds(new Set());
+    };
+
+    const generateEan = () => {
+      const gen = new Set(generatedEans);
+      const newItems = items.map((it) => {
+        const key = getKey(it);
+        if (selectedIds.has(key) && (!it.ean || !isValidEan13(it.ean)) && it.articleNumber) {
+          const e = toEan13FromArticleNumber(it.articleNumber);
+          if (e) {
+            gen.add(key);
+            return { ...it, ean: e };
+          }
+        }
+        return it;
+      });
+      setItems(newItems);
+      setGeneratedEans(gen);
+    };
+
+    const createSchema = z.object({
+      articleNumber: z.string().optional(),
+      name: z.string().min(1),
+      ean: z.string().optional().refine((v) => !v || isValidEan13(v), {
+        message: 'EAN-13 ungültig',
+      }),
+      price: z.preprocess((v) => (v === '' ? undefined : Number(v)), z.number().nonnegative().optional()),
+      unit: z.string().optional(),
+    });
+
+    const handleCreate = async () => {
+      const parsed = createSchema.safeParse(newArt);
+      if (!parsed.success) {
+        setFormError(parsed.error.issues[0].message);
+        return;
+      }
+      setFormError(null);
+      const payload = parsed.data;
+      const res = await window.bridge?.customCreate?.(payload);
+      if (res && newArt.addToCart) {
+        setCart((prev) => [...prev, { source: 'custom', id: res.id, ...payload, qty: 1 }]);
+      }
+      setNewArt({ articleNumber: '', name: '', ean: '', price: '', unit: '', addToCart: true });
+      await refreshList();
+    };
+
+    const incQty = (idx: number) => {
+      setCart((prev) => {
+        const next = [...prev];
+        next[idx].qty += 1;
+        return next;
+      });
+    };
+
+    const decQty = (idx: number) => {
+      setCart((prev) => {
+        const next = [...prev];
+        next[idx].qty -= 1;
+        if (next[idx].qty <= 0) next.splice(idx, 1);
+        return next;
+      });
+    };
+
+    const removeCart = (idx: number) => {
+      setCart((prev) => prev.filter((_, i) => i !== idx));
+    };
+
+    const totalSelected = selectedIds.size;
 
   return (
     <div>
-      <div>
-        {dbInfoText && <div>{dbInfoText}</div>}
-        <Input
-          value={query}
-          onChange={(_, d) => setQuery(d.value)}
-          onKeyDown={onKeyDown}
-          placeholder="Suche"
-          disabled={!apiReady || loading}
-        />
-        <Button onClick={onSearch} disabled={!apiReady || loading}>
-          Suchen
-        </Button>
-        <Button
-          onClick={async () => {
-            await window.bridge?.dbClear?.();
-            await loadInfo();
-            await refreshList(1);
-          }}
-          disabled={!apiReady || loading}
-        >
-          Leeren
-        </Button>
-      </div>
+        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+          {dbInfoText && <div>{dbInfoText}</div>}
+          <Input
+            value={query}
+            onChange={(_, d) => setQuery(d.value)}
+            onKeyDown={onKeyDown}
+            placeholder="Suche"
+            disabled={!apiReady || loading}
+          />
+          <Button onClick={onSearch} disabled={!apiReady || loading}>
+            Suchen
+          </Button>
+          <Button
+            onClick={async () => {
+              await window.bridge?.dbClear?.();
+              await loadInfo();
+              await refreshList(1);
+            }}
+            disabled={!apiReady || loading}
+          >
+            Leeren
+          </Button>
+        </div>
       {!apiReady && (
         <div style={{ background: '#fdd835', padding: '8px', marginTop: '8px' }}>
           Bridge nicht initialisiert – bitte als Electron-App starten
@@ -147,14 +259,24 @@ const ArticleSearch: React.FC = () => {
       {!loading && loaded && items.length === 0 && <div>Keine Treffer</div>}
       {items.length > 0 && (
         <div>
-          <div style={{ margin: '8px 0' }}>
-            {start}–{end} von {total}
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th onClick={() => toggleSort('articleNumber')} style={{ cursor: 'pointer' }}>
-                  Artikelnummer
+            <div style={{ margin: '8px 0', display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <span>
+                {start}–{end} von {total}
+              </span>
+              {totalSelected > 0 && <span>{totalSelected} Einträge ausgewählt</span>}
+              <Button onClick={addSelectionToCart} disabled={totalSelected === 0}>
+                Auswahl in Warenkorb
+              </Button>
+              <Button onClick={generateEan} disabled={totalSelected === 0}>
+                EAN aus Artikelnummer erzeugen
+              </Button>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th></th>
+                  <th onClick={() => toggleSort('articleNumber')} style={{ cursor: 'pointer' }}>
+                    Artikelnummer
                   {sortBy === 'articleNumber'
                     ? sortDir === 'ASC'
                       ? ' ▲'
@@ -182,19 +304,28 @@ const ArticleSearch: React.FC = () => {
                 <th>Gruppe</th>
               </tr>
             </thead>
-            <tbody>
-              {items.map((it) => (
-                <tr key={it.articleNumber}>
-                  <td>{it.articleNumber || ''}</td>
-                  <td>{it.name}</td>
-                  <td>{it.ean || ''}</td>
-                  <td>{it.price != null ? currency.format(it.price) : '–'}</td>
-                  <td>{it.unit || ''}</td>
-                  <td>{it.productGroup || ''}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+              <tbody>
+                {items.map((it) => {
+                  const key = getKey(it);
+                  return (
+                    <tr key={key} onClick={() => toggleSelect(key)} style={{ cursor: 'pointer' }}>
+                      <td>
+                        <Checkbox
+                          checked={selectedIds.has(key)}
+                          onChange={() => toggleSelect(key)}
+                        />
+                      </td>
+                      <td>{it.articleNumber || ''}</td>
+                      <td>{it.name}</td>
+                      <td>{it.ean || ''}</td>
+                      <td>{it.price != null ? currency.format(it.price) : '–'}</td>
+                      <td>{it.unit || ''}</td>
+                      <td>{it.productGroup || ''}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           <div style={{ marginTop: '8px' }}>
             <Button onClick={prev} disabled={!apiReady || loading || page <= 1}>
               Zurück
@@ -207,10 +338,77 @@ const ArticleSearch: React.FC = () => {
             </Button>
           </div>
         </div>
-      )}
-    </div>
-  );
-};
+        )}
+        <div style={{ marginTop: '16px', display: 'flex', gap: '16px' }}>
+          <div style={{ flex: 1 }}>
+            <h3>Artikel manuell anlegen</h3>
+            {formError && <div style={{ color: 'red' }}>{formError}</div>}
+            <Input
+              value={newArt.articleNumber}
+              onChange={(_, d) => setNewArt({ ...newArt, articleNumber: d.value })}
+              placeholder="Artikelnummer (optional)"
+            />
+            <Input
+              value={newArt.name}
+              onChange={(_, d) => setNewArt({ ...newArt, name: d.value })}
+              placeholder="Name"
+            />
+            <Input
+              value={newArt.ean}
+              onChange={(_, d) => setNewArt({ ...newArt, ean: d.value })}
+              placeholder="EAN (optional)"
+            />
+            <Input
+              value={newArt.price}
+              onChange={(_, d) => setNewArt({ ...newArt, price: d.value })}
+              placeholder="Preis (optional)"
+            />
+            <Input
+              value={newArt.unit}
+              onChange={(_, d) => setNewArt({ ...newArt, unit: d.value })}
+              placeholder="Einheit (optional)"
+            />
+            <Checkbox
+              checked={newArt.addToCart}
+              onChange={(_, d) => setNewArt({ ...newArt, addToCart: d.checked })}
+              label="nach Anlage in Warenkorb übernehmen"
+            />
+            <Button onClick={handleCreate}>Anlegen</Button>
+            <div style={{ fontSize: '0.8em', marginTop: '8px' }}>
+              GS1-konforme EANs werden offiziell vergeben. Die hier aus Artikelnummern generierten Codes sind nicht für den
+              Handel bestimmt.
+            </div>
+          </div>
+          <div style={{ width: '300px' }}>
+            <h3>Warenkorb</h3>
+            <ul>
+              {cart.map((c, idx) => (
+                <li key={idx} style={{ marginBottom: '8px' }}>
+                  <div>{c.name}</div>
+                  <div style={{ fontSize: '0.8em' }}>{c.articleNumber || ''}</div>
+                  <div style={{ fontSize: '0.8em' }}>
+                    {c.ean || ''} {c.generated ? '(gen.)' : ''}
+                  </div>
+                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                    <Button onClick={() => decQty(idx)}>-</Button>
+                    <span>{c.qty}</span>
+                    <Button onClick={() => incQty(idx)}>+</Button>
+                    <Button onClick={() => removeCart(idx)}>Entfernen</Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            {cart.length > 0 && (
+              <div style={{ marginTop: '8px' }}>
+                <Button onClick={() => generateLabelsPdf(cart)}>PDF-Etiketten erzeugen</Button>
+                <Button onClick={() => setCart([])}>Warenkorb leeren</Button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
 export default ArticleSearch;
 
