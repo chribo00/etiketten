@@ -14,7 +14,8 @@
     "dist": "npm run build:renderer && electron-builder",
     "rebuild-native": "electron-rebuild -f -w better-sqlite3 -w sharp",
     "postinstall": "electron-builder install-app-deps",
-    "test": "echo \"No tests configured\" && exit 0"
+    "test": "echo \"No tests configured\" && exit 0",
+    "typecheck": "tsc -p tsconfig.main.json --noEmit"
   },
   "dependencies": {
     "electron": "^30.0.0",
