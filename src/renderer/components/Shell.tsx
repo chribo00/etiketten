@@ -25,11 +25,10 @@ const Shell: React.FC = () => {
     <div>
       {!window.bridge && (
         <div style={{ background: '#fdd835', padding: '8px', marginBottom: '8px' }}>
-          Bridge nicht initialisiert – bitte als Electron-App starten.
+          Bridge nicht initialisiert – bitte als Electron-App starten
         </div>
       )}
       <h1>Etiketten</h1>
-      <div>{window.bridge?.ready ? 'Bridge initialisiert' : 'Bridge nicht initialisiert'}</div>
       <ImportPane />
       <LabelOptionsPane opts={opts} onChange={setOpts} />
       <SearchPane defaultOpts={opts} onAdded={refreshCart} />

@@ -35,7 +35,6 @@ const ImportPane: React.FC = () => {
 
   return (
     <div>
-      <div>{window.bridge?.ready ? 'Bridge initialisiert' : 'Bridge nicht initialisiert'}</div>
       <input type="file" accept=".001,.dat,.txt,.zip" onChange={handleFileChange} />
       {file && <div>{file.name}</div>}
       <Button onClick={handleImport} disabled={disabled}>
