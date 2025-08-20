@@ -9,33 +9,19 @@ export type DatanormImportPayload = {
     shortText?: boolean;
     price?: boolean;
     image?: boolean;
+    unit?: boolean;
+    productGroup?: boolean;
   };
 };
 
 const bridge = {
   ready: true,
+  pickDatanormFile: () => ipcRenderer.invoke('dialog:pick-datanorm'),
   importDatanorm: (payload: DatanormImportPayload) =>
     ipcRenderer.invoke('datanorm:import', payload),
   searchArticles: (opts: any) => ipcRenderer.invoke('articles:search', opts),
-  onImportProgress: (
-    cb: (p: { phase: string; current: number; total?: number }) => void,
-  ): (() => void) => {
-    const handler = (_event: unknown, data: any) => {
-      try {
-        cb(data);
-      } catch (err) {
-        console.error('onImportProgress callback error', err);
-      }
-    };
-    ipcRenderer.on('datanorm:progress', handler);
-    return () => {
-      try {
-        ipcRenderer.removeListener('datanorm:progress', handler);
-      } catch (err) {
-        console.error('unsubscribe failed', err);
-      }
-    };
-  },
+  dbInfo: () => ipcRenderer.invoke('db:info'),
+  dbClear: () => ipcRenderer.invoke('db:clear'),
 };
 
 try {

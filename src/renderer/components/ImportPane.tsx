@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Button, Checkbox } from '@fluentui/react-components';
 
 const ImportPane: React.FC = () => {
-  const [selectedFile, setSelectedFile] = useState<{ filePath: string; name: string } | null>(null);
+  const [selected, setSelected] = useState<{ filePath: string; name: string } | null>(null);
   const [flags, setFlags] = useState({
     articleNumber: true,
     ean: true,
@@ -10,65 +10,49 @@ const ImportPane: React.FC = () => {
     price: true,
     image: true,
   });
-  const [progress, setProgress] = useState<{ phase: string; current: number; total?: number } | undefined>();
-  const [isImporting, setIsImporting] = useState(false);
-  const [imported, setImported] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [importSummary, setImportSummary] = useState('');
+  const [dbInfoText, setDbInfoText] = useState('');
+
+  const loadInfo = async () => {
+    const info = await window.bridge?.dbInfo?.();
+    if (info) setDbInfoText(`DB enthält ${info.rowCount} Artikel`);
+  };
 
   useEffect(() => {
-    const off = window.bridge?.onImportProgress?.((p) => setProgress(p));
-    return () => off?.();
+    loadInfo();
   }, []);
 
-  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    setSelectedFile({
-      filePath: (f as any).path ?? '',
-      name: f.name,
-    });
+  const pickFile = async () => {
+    const res = await window.bridge?.pickDatanormFile?.();
+    if (res) setSelected(res);
   };
+
+  const refreshList = () => {
+    window.dispatchEvent(new Event('articles:refresh'));
+  };
+
+  const onImport = async () => {
+    if (!selected?.filePath) return;
+    setBusy(true);
+    const res = await window.bridge?.importDatanorm?.({ filePath: selected.filePath, mapping: flags });
+    setBusy(false);
+    if (res) {
+      setImportSummary(`Parsed ${res.parsed} | Inserted ${res.inserted} | Updated ${res.updated} | ${res.durationMs} ms`);
+    }
+    refreshList();
+    await loadInfo();
+  };
+
+  const disabled = !window.bridge?.ready || !selected?.filePath || busy;
 
   const toggle = (key: keyof typeof flags) => (_: any, data: any) =>
     setFlags((prev) => ({ ...prev, [key]: !!data.checked }));
 
-  const handleImport = async () => {
-    if (!window.bridge?.importDatanorm) return;
-    if (!selectedFile?.filePath) {
-      alert('Kein Dateipfad vorhanden. Bitte Datei neu auswählen.');
-      return;
-    }
-    setIsImporting(true);
-    setProgress(undefined);
-    setImported(null);
-    setError(null);
-    try {
-      const res = await window.bridge.importDatanorm({
-        filePath: selectedFile.filePath,
-        mapping: {
-          articleNumber: flags.articleNumber,
-          ean: flags.ean,
-          shortText: flags.shortText,
-          price: flags.price,
-          image: flags.image,
-        },
-      });
-      if (res?.importedCount !== undefined) setImported(res.importedCount);
-    } catch (err: any) {
-      console.error('importDatanorm failed', err);
-      const msg = err?.message || 'Unbekannter Fehler';
-      setError(`${msg} (Feld name)`);
-    } finally {
-      setIsImporting(false);
-    }
-  };
-  const disabled = !window.bridge?.ready || !selectedFile?.filePath || isImporting;
-  const pct = progress?.total ? Math.round((progress.current / progress.total) * 100) : undefined;
-
   return (
     <div>
-      <input type="file" accept=".001,.dat,.txt,.zip" onChange={onFileChange} />
-      {selectedFile?.name && <div>{selectedFile.name}</div>}
+      <Button onClick={pickFile} disabled={busy}>Datei auswählen</Button>
+      {selected?.name && <div>{selected.name}</div>}
       <div>
         <Checkbox label="Artikelnummer" checked={flags.articleNumber} onChange={toggle('articleNumber')} />
         <Checkbox label="EAN" checked={flags.ean} onChange={toggle('ean')} />
@@ -76,16 +60,11 @@ const ImportPane: React.FC = () => {
         <Checkbox label="Preis" checked={flags.price} onChange={toggle('price')} />
         <Checkbox label="Bild" checked={flags.image} onChange={toggle('image')} />
       </div>
-      <Button onClick={handleImport} disabled={disabled}>
-        {isImporting ? 'Importiere…' : 'Importieren'}
+      <Button onClick={onImport} disabled={disabled}>
+        {busy ? 'Importiere…' : 'Importieren'}
       </Button>
-      {progress && (
-        <div>
-          {pct !== undefined ? `${pct}% (${progress.current}/${progress.total})` : `${progress.current}`}
-        </div>
-      )}
-      {imported !== null && !error && <div>Import abgeschlossen ({imported} Artikel)</div>}
-      {error && <div style={{ color: 'red' }}>{error}</div>}
+      {importSummary && <div>{importSummary}</div>}
+      {dbInfoText && <div>{dbInfoText}</div>}
     </div>
   );
 };

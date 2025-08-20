@@ -1,6 +1,7 @@
-import { ipcMain } from 'electron';
-import { parseDatanorm } from '../datanorm/parser';
-import { searchArticles, upsertArticles } from '../db';
+import { ipcMain, dialog } from 'electron';
+import path from 'path';
+import { importDatanormFile } from '../datanorm/parser';
+import { searchArticles, getDbInfo, clearArticles } from '../db';
 import { registerCartHandlers } from './cart';
 import { registerLabelsHandlers } from './labels';
 import { registerShellHandlers } from './shell';
@@ -10,36 +11,24 @@ export function registerIpcHandlers() {
   registerLabelsHandlers();
   registerShellHandlers();
 
-  ipcMain.handle('datanorm:import', async (_evt, payload: { filePath: string }) => {
-    if (!payload?.filePath) {
-      throw new RangeError('Missing required parameter "filePath"');
-    }
-    const start = Date.now();
-    const articles = parseDatanorm(payload.filePath);
-    upsertArticles(articles);
-    const duration = Date.now() - start;
-    console.log(`Imported ${articles.length} articles in ${duration}ms`);
-    return { ok: true, importedCount: articles.length };
+  ipcMain.handle('datanorm:import', async (_e, { filePath, mapping }) => {
+    const res = await importDatanormFile({ filePath, mapping });
+    console.log('Import result', res);
+    return res;
   });
 
-  ipcMain.handle('articles:search', async (_evt, opts) => {
-    try {
-      const limit = Math.max(1, Math.min(200, Number(opts?.limit ?? 50)));
-      const offset = Math.max(0, Number(opts?.offset ?? 0));
-      const sortBy = ['name', 'articleNumber', 'price'].includes(opts?.sortBy)
-        ? opts.sortBy
-        : 'name';
-      const sortDir = opts?.sortDir === 'DESC' ? 'DESC' : 'ASC';
-      return searchArticles({
-        text: opts?.text,
-        limit,
-        offset,
-        sortBy,
-        sortDir,
-      });
-    } catch (err: any) {
-      console.error('articles:search failed', err);
-      return { items: [], total: 0, message: err?.message || 'Unbekannter Fehler' };
-    }
+  ipcMain.handle('articles:search', async (_e, opts) => searchArticles(opts));
+
+  ipcMain.handle('db:info', () => getDbInfo());
+
+  ipcMain.handle('db:clear', () => clearArticles());
+
+  ipcMain.handle('dialog:pick-datanorm', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      properties: ['openFile'],
+      filters: [{ name: 'DATANORM', extensions: ['001', 'txt', 'csv'] }],
+    });
+    if (canceled || !filePaths[0]) return null;
+    return { filePath: filePaths[0], name: path.basename(filePaths[0]) };
   });
 }

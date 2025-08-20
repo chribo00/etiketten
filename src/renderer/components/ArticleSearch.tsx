@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button, Input } from '@fluentui/react-components';
 
 const currency = new Intl.NumberFormat('de-AT', {
@@ -16,8 +16,15 @@ const ArticleSearch: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
+  const [loaded, setLoaded] = useState(false);
+  const [dbInfoText, setDbInfoText] = useState('');
 
-  const fetch = async (
+  const loadInfo = async () => {
+    const info = await window.bridge?.dbInfo?.();
+    if (info) setDbInfoText(`DB enthält ${info.rowCount} Artikel`);
+  };
+
+  const refreshList = async (
     p = page,
     sb: 'name' | 'articleNumber' | 'price' = sortBy,
     sd: 'ASC' | 'DESC' = sortDir,
@@ -49,11 +56,23 @@ const ArticleSearch: React.FC = () => {
       setTotal(0);
     }
     setLoading(false);
+    setLoaded(true);
   };
+
+  useEffect(() => {
+    loadInfo();
+    refreshList();
+    const handler = () => {
+      loadInfo();
+      refreshList();
+    };
+    window.addEventListener('articles:refresh', handler);
+    return () => window.removeEventListener('articles:refresh', handler);
+  }, []);
 
   const onSearch = async () => {
     setPage(1);
-    await fetch(1);
+    await refreshList(1);
   };
 
   const onKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -66,13 +85,13 @@ const ArticleSearch: React.FC = () => {
   const prev = async () => {
     const p = page - 1;
     setPage(p);
-    await fetch(p);
+    await refreshList(p);
   };
 
   const next = async () => {
     const p = page + 1;
     setPage(p);
-    await fetch(p);
+    await refreshList(p);
   };
 
   const toggleSort = async (col: 'name' | 'articleNumber' | 'price') => {
@@ -85,7 +104,7 @@ const ArticleSearch: React.FC = () => {
     setSortBy(col);
     setSortDir(dir);
     setPage(1);
-    await fetch(1, col, dir);
+    await refreshList(1, col, dir);
   };
 
   const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
@@ -96,6 +115,7 @@ const ArticleSearch: React.FC = () => {
   return (
     <div>
       <div>
+        {dbInfoText && <div>{dbInfoText}</div>}
         <Input
           value={query}
           onChange={(_, d) => setQuery(d.value)}
@@ -106,6 +126,16 @@ const ArticleSearch: React.FC = () => {
         <Button onClick={onSearch} disabled={!apiReady || loading}>
           Suchen
         </Button>
+        <Button
+          onClick={async () => {
+            await window.bridge?.dbClear?.();
+            await loadInfo();
+            await refreshList(1);
+          }}
+          disabled={!apiReady || loading}
+        >
+          Leeren
+        </Button>
       </div>
       {!apiReady && (
         <div style={{ background: '#fdd835', padding: '8px', marginTop: '8px' }}>
@@ -114,7 +144,7 @@ const ArticleSearch: React.FC = () => {
       )}
       {loading && <div>Suche…</div>}
       {error && <div style={{ color: 'red' }}>{error}</div>}
-      {!loading && items.length === 0 && query && !error && <div>Keine Treffer</div>}
+      {!loading && loaded && items.length === 0 && <div>Keine Treffer</div>}
       {items.length > 0 && (
         <div>
           <div style={{ margin: '8px 0' }}>

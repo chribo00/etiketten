@@ -1,6 +1,9 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'path';
-import { registerIpcHandlers } from './ipc/index';
+
+app.setName('Etiketten');
+const appData = app.getPath('appData');
+app.setPath('userData', path.join(appData, 'Etiketten'));
 
 async function createWindow() {
   const win = new BrowserWindow({
@@ -23,7 +26,8 @@ async function createWindow() {
   }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  const { registerIpcHandlers } = await import('./ipc/index');
   registerIpcHandlers();
   createWindow();
 });

@@ -6,7 +6,7 @@ import { ensureSchema } from './db.migrations';
 
 const dataDir = path.join(app.getPath('userData'), 'data');
 fs.mkdirSync(dataDir, { recursive: true });
-const dbPath = path.join(dataDir, 'app-data.db');
+export const dbPath = path.join(dataDir, 'app-data.db');
 console.log('DB path:', dbPath);
 const db = new Database(dbPath);
 ensureSchema(db);
@@ -21,51 +21,53 @@ CREATE TABLE IF NOT EXISTS cart(
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );`);
 
-const upsertArticle = db.prepare(`INSERT INTO articles (articleNumber, ean, name, price, unit, productGroup, updated_at)
-VALUES (@articleNumber, @ean, COALESCE(NULLIF(@name,''),'(ohne Bezeichnung)'), @price, @unit, @productGroup, CURRENT_TIMESTAMP)
-ON CONFLICT(articleNumber) DO UPDATE SET
-  ean = excluded.ean,
-  name = excluded.name,
-  price = excluded.price,
-  unit = excluded.unit,
-  productGroup = excluded.productGroup,
-  updated_at = CURRENT_TIMESTAMP;`);
-
-const upsertTier = db.prepare(`INSERT INTO price_tiers (articleNumber, qty, price)
-VALUES (@articleNumber, @qty, @price)
-ON CONFLICT(articleNumber, qty) DO UPDATE SET price=excluded.price;`);
+const stmtInsert = db.prepare(
+  `INSERT INTO articles (articleNumber, ean, name, price, unit, productGroup, updated_at)
+   VALUES (@articleNumber, @ean, @name, @price, @unit, @productGroup, CURRENT_TIMESTAMP)`,
+);
+const stmtUpdate = db.prepare(
+  `UPDATE articles SET ean=@ean, name=@name, price=@price, unit=@unit, productGroup=@productGroup, updated_at=CURRENT_TIMESTAMP
+   WHERE articleNumber=@articleNumber`,
+);
 
 export function upsertArticles(batch: any[]) {
   const tx = db.transaction((rows: any[]) => {
-    for (const item of rows) {
-      const mapped = {
-        articleNumber: item.articleNumber || '',
-        ean: item.ean || null,
-        name: item.name || '',
-        price: Number(item.price ?? 0),
-        unit: item.unit || null,
-        productGroup: item.productGroup || null,
+    let inserted = 0;
+    let updated = 0;
+    for (const raw of rows) {
+      const item = {
+        articleNumber: String(raw.articleNumber || '').trim(),
+        ean: raw.ean ? String(raw.ean).trim() : null,
+        name: String(raw.name || '').trim() || '(ohne Bezeichnung)',
+        price: Number(raw.price ?? 0),
+        unit: raw.unit ?? null,
+        productGroup: raw.productGroup ?? null,
       };
       try {
-        upsertArticle.run(mapped);
-        if (Array.isArray(item.tiers)) {
-          for (const tier of item.tiers) {
-            if (tier && typeof tier.qty === 'number' && typeof tier.price === 'number') {
-              upsertTier.run({
-                articleNumber: mapped.articleNumber,
-                qty: tier.qty,
-                price: tier.price,
-              });
-            }
-          }
+        stmtInsert.run(item);
+        inserted++;
+      } catch (e: any) {
+        if (String(e.message).includes('UNIQUE')) {
+          stmtUpdate.run(item);
+          updated++;
+        } else {
+          throw e;
         }
-      } catch (err) {
-        (err as any).item = mapped;
-        throw err;
       }
     }
+    return { inserted, updated };
   });
-  tx(batch);
+  return tx(batch);
+}
+
+export function getDbInfo() {
+  const row = db.prepare('SELECT COUNT(*) AS n FROM articles').get() as any;
+  return { path: dbPath, rowCount: row.n as number };
+}
+
+export function clearArticles() {
+  const res = db.prepare('DELETE FROM articles').run();
+  return res.changes;
 }
 
 export function searchArticles(opts: {
