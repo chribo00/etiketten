@@ -5,8 +5,8 @@
   "main": "src/main/main.ts",
   "type": "module",
   "scripts": {
-    "dev": "npm run build:preload && concurrently -k -n MAIN,RENDERER \"npm:dev:main\" \"npm:dev:renderer\"",
-    "dev:main": "cross-env NODE_OPTIONS=\"-r ts-node/register/transpile-only -r source-map-support/register\" TS_NODE_PROJECT=tsconfig.json electron .",
+    "dev": "npm run build:preload && concurrently -k \"npm:dev:renderer\" \"npm:dev:main\"",
+    "dev:main": "wait-on http://localhost:5173 && cross-env NODE_OPTIONS=\"-r ts-node/register/transpile-only -r source-map-support/register\" TS_NODE_PROJECT=tsconfig.json electron .",
     "build:preload": "tsc src/preload.ts --outDir src/main --module NodeNext --target ES2020 --esModuleInterop",
     "dev:renderer": "vite --config vite.config.ts",
     "build:renderer": "vite build",

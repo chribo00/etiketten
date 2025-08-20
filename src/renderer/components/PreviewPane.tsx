@@ -9,12 +9,12 @@ interface Props {
 
 const PreviewPane: React.FC<Props> = ({ opts }) => {
   const generate = async () => {
-    const cart = (await window.api?.cart?.get?.()) || [];
+    const cart = (await window.bridge?.cart?.get?.()) || [];
     if (!cart.length) return;
-    const res = await window.api?.labels?.generate?.();
+    const res = await window.bridge?.labels?.generate?.();
     if (!res) return;
     alert(`PDF gespeichert unter ${res.pdfPath}`);
-    await window.api?.shell?.open?.(res.pdfPath);
+    await window.bridge?.shell?.open?.(res.pdfPath);
   };
   return (
     <div>

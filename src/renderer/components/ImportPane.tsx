@@ -8,7 +8,7 @@ const ImportPane: React.FC = () => {
   const [imported, setImported] = useState<number | null>(null);
 
   useEffect(() => {
-    const off = window.api?.onImportProgress?.((p) => setProgress(p));
+    const off = window.bridge?.onImportProgress?.((p) => setProgress(p));
     return () => off?.();
   }, []);
 
@@ -18,31 +18,25 @@ const ImportPane: React.FC = () => {
   };
 
   const handleImport = async () => {
-    if (!window.api?.importDatanorm) return;
+    if (!window.bridge?.importDatanorm || !file) return;
     setIsImporting(true);
     setProgress(undefined);
     setImported(null);
     try {
-      if (window.api.dialog?.openDatanorm) {
-        const res = await window.api.importDatanorm({ useDialog: true });
-        setImported(res.imported);
-      } else if (file) {
-        const buffer = await file.arrayBuffer();
-        const res = await window.api.importDatanorm({ fileBuffer: buffer });
-        setImported(res.imported);
-      }
+      const buffer = await file.arrayBuffer();
+      const res = await window.bridge.importDatanorm({ fileBuffer: buffer });
+      setImported(res.imported);
     } finally {
       setIsImporting(false);
     }
   };
-
-  const canOpenDialog = !!window.api?.dialog?.openDatanorm;
-  const disabled = !window.api?.importDatanorm || (!canOpenDialog && !file) || isImporting;
+  const disabled =
+    !window.bridge?.ready || !window.bridge?.importDatanorm || !file || isImporting;
   const pct = progress?.total ? Math.round((progress.current / progress.total) * 100) : undefined;
 
   return (
     <div>
-      <div>{window.api ? 'Bridge initialisiert' : 'Bridge nicht initialisiert'}</div>
+      <div>{window.bridge?.ready ? 'Bridge initialisiert' : 'Bridge nicht initialisiert'}</div>
       <input type="file" accept=".001,.dat,.txt,.zip" onChange={handleFileChange} />
       {file && <div>{file.name}</div>}
       <Button onClick={handleImport} disabled={disabled}>

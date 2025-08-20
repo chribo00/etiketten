@@ -1,9 +1,10 @@
 import { app, BrowserWindow } from 'electron';
-import path from 'path';
+import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { registerIpc } from './ipc';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const preloadPath = join(__dirname, 'preload.js');
 
 async function createWindow() {
   const win = new BrowserWindow({
@@ -11,20 +12,19 @@ async function createWindow() {
     height: 800,
     title: 'Etiketten',
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: false,
+      preload: preloadPath,
     },
   });
 
-  const devServer = process.env.VITE_DEV_SERVER_URL;
-  if (devServer) {
-    await win.loadURL(devServer);
+  if (!app.isPackaged) {
+    await win.loadURL('http://localhost:5173');
     win.webContents.openDevTools();
   } else {
-    await win.loadFile(path.join(__dirname, '../../dist/index.html'));
+    await win.loadFile(join(__dirname, '../../dist/index.html'));
   }
-
 }
 
 app.whenReady().then(() => {
