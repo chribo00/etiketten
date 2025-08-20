@@ -1,7 +1,15 @@
 import { ipcMain, dialog } from 'electron';
 import path from 'path';
 import { importDatanormFile } from '../datanorm/parser';
-import { searchArticles, getDbInfo, clearArticles } from '../db';
+import {
+  searchArticles,
+  getDbInfo,
+  clearArticles,
+  createCustomArticle,
+  updateCustomArticle,
+  deleteCustomArticle,
+  searchAllArticles,
+} from '../db';
 import { registerCartHandlers } from './cart';
 import { registerLabelsHandlers } from './labels';
 import { registerShellHandlers } from './shell';
@@ -17,7 +25,12 @@ export function registerIpcHandlers() {
     return res;
   });
 
-  ipcMain.handle('articles:search', async (_e, opts) => searchArticles(opts));
+    ipcMain.handle('articles:search', async (_e, opts) => searchArticles(opts));
+    ipcMain.handle('articles:searchAll', async (_e, opts) => searchAllArticles(opts));
+
+    ipcMain.handle('custom:create', (_e, payload) => createCustomArticle(payload));
+    ipcMain.handle('custom:update', (_e, { id, patch }) => updateCustomArticle(id, patch));
+    ipcMain.handle('custom:delete', (_e, id) => deleteCustomArticle(id));
 
   ipcMain.handle('db:info', () => getDbInfo());
 

@@ -11,5 +11,5 @@
     "forceConsistentCasingInFileNames": true,
     "sourceMap": true
   },
-  "include": ["src/main/**/*.ts", "src/preload.ts", "src/renderer/**/*.d.ts"]
-}
+    "include": ["src/main/**/*.ts", "src/preload.ts", "src/renderer/**/*.d.ts", "src/types/**/*.d.ts"]
+  }

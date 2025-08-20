@@ -99,6 +99,99 @@ export function searchArticles(opts: {
   return { items, total };
 }
 
+export function searchAllArticles(opts: {
+  text?: string;
+  limit?: number;
+  offset?: number;
+  sortBy?: 'name' | 'articleNumber' | 'price';
+  sortDir?: 'ASC' | 'DESC';
+}) {
+  const text = opts.text?.trim();
+  const limit = typeof opts.limit === 'number' ? opts.limit : 50;
+  const offset = typeof opts.offset === 'number' ? opts.offset : 0;
+  const sortBy = ['name', 'articleNumber', 'price'].includes(opts.sortBy || '') ? opts.sortBy! : 'name';
+  const sortDir = opts.sortDir === 'DESC' ? 'DESC' : 'ASC';
+
+  const where = text
+    ? `WHERE (name LIKE @q COLLATE NOCASE OR articleNumber LIKE @q COLLATE NOCASE OR ean LIKE @q COLLATE NOCASE)`
+    : '';
+  const params: any = { q: text ? `%${text}%` : undefined, limit, offset };
+
+  const totalStmt = db.prepare(
+    `SELECT COUNT(*) as count FROM (
+      SELECT id FROM articles ${where}
+      UNION ALL
+      SELECT id FROM custom_articles ${where}
+    )`,
+  );
+  const total = (totalStmt.get(params) as any).count as number;
+
+  const itemsStmt = db.prepare(
+    `SELECT id, articleNumber, ean, name, price, unit, productGroup, 'import' AS source FROM articles ${where}
+     UNION ALL
+     SELECT id, articleNumber, ean, name, price, unit, productGroup, 'custom' AS source FROM custom_articles ${where}
+     ORDER BY ${sortBy} ${sortDir} LIMIT @limit OFFSET @offset`,
+  );
+  const items = itemsStmt.all(params);
+
+  return { items, total };
+}
+
+export function createCustomArticle(a: {
+  articleNumber?: string;
+  name: string;
+  ean?: string;
+  price?: number;
+  unit?: string;
+  productGroup?: string;
+}) {
+  const stmt = db.prepare(
+    `INSERT INTO custom_articles (articleNumber, ean, name, price, unit, productGroup, updated_at)
+     VALUES (@articleNumber, @ean, @name, @price, @unit, @productGroup, CURRENT_TIMESTAMP)`,
+  );
+  const res = stmt.run({
+    articleNumber: a.articleNumber ?? null,
+    ean: a.ean ?? null,
+    name: a.name,
+    price: a.price ?? 0,
+    unit: a.unit ?? null,
+    productGroup: a.productGroup ?? null,
+  });
+  return { id: Number(res.lastInsertRowid) };
+}
+
+export function updateCustomArticle(
+  id: number,
+  patch: {
+    articleNumber?: string;
+    ean?: string;
+    name?: string;
+    price?: number;
+    unit?: string;
+    productGroup?: string;
+  },
+) {
+  const fields: string[] = [];
+  const params: any = { id };
+  for (const key of ['articleNumber', 'ean', 'name', 'price', 'unit', 'productGroup'] as const) {
+    if (patch[key] !== undefined) {
+      fields.push(`${key}=@${key}`);
+      params[key] = patch[key];
+    }
+  }
+  if (fields.length === 0) return { changes: 0 };
+  const stmt = db.prepare(
+    `UPDATE custom_articles SET ${fields.join(', ')}, updated_at=CURRENT_TIMESTAMP WHERE id=@id`,
+  );
+  const res = stmt.run(params);
+  return { changes: res.changes };
+}
+
+export function deleteCustomArticle(id: number) {
+  const res = db.prepare(`DELETE FROM custom_articles WHERE id=?`).run(id);
+  return { changes: res.changes };
+}
+
 export function getArticle(id: number) {
   return db.prepare(`SELECT * FROM articles WHERE id=?`).get(id);
 }
