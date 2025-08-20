@@ -1,29 +1,21 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
+export type DatanormImportPayload = {
+  filePath: string;
+  name?: string;
+  mapping?: {
+    articleNumber?: boolean;
+    ean?: boolean;
+    shortText?: boolean;
+    price?: boolean;
+    image?: boolean;
+  };
+};
+
 const bridge = {
   ready: true,
-  dialog: {
-    openDatanorm: async (): Promise<void> => {
-      try {
-        await ipcRenderer.invoke('datanorm:openDialog');
-      } catch (err) {
-        console.error('openDatanorm failed', err);
-        throw err;
-      }
-    },
-  },
-  importDatanorm: async (opts: { fileBuffer?: ArrayBuffer; useDialog?: boolean }): Promise<{ imported: number }> => {
-    try {
-      if (opts?.useDialog) {
-        await ipcRenderer.invoke('datanorm:openDialog');
-        return await ipcRenderer.invoke('datanorm:import', { useDialog: true });
-      }
-      return await ipcRenderer.invoke('datanorm:import', opts);
-    } catch (err) {
-      console.error('importDatanorm failed', err);
-      throw err;
-    }
-  },
+  importDatanorm: (payload: DatanormImportPayload) =>
+    ipcRenderer.invoke('datanorm:import', payload),
   onImportProgress: (
     cb: (p: { phase: string; current: number; total?: number }) => void,
   ): (() => void) => {

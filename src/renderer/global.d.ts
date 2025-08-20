@@ -2,8 +2,17 @@ declare global {
   interface Window {
     bridge?: {
       ready: boolean;
-      dialog?: { openDatanorm: () => Promise<void> };
-      importDatanorm?: (opts: { fileBuffer?: ArrayBuffer }) => Promise<{ imported: number }>;
+      importDatanorm?: (payload: {
+        filePath: string;
+        name?: string;
+        mapping?: {
+          articleNumber?: boolean;
+          ean?: boolean;
+          shortText?: boolean;
+          price?: boolean;
+          image?: boolean;
+        };
+      }) => Promise<any>;
       onImportProgress?: (
         cb: (p: { phase: string; current: number; total?: number }) => void,
       ) => () => void;
