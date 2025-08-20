@@ -31,10 +31,15 @@ const SearchPane: React.FC<Props> = ({ defaultOpts, onAdded }) => {
     if (onAdded) onAdded();
   };
 
+  const apiReady = !!window.api;
+
   return (
     <div>
+      {!apiReady && <div>Bridge nicht initialisiert</div>}
       <Input value={q} onChange={(_, d) => setQ(d.value)} placeholder="Suche" />
-      <Button onClick={doSearch}>Suchen</Button>
+      <Button onClick={doSearch} disabled={!apiReady}>
+        Suchen
+      </Button>
       <table>
         <thead>
           <tr>
@@ -63,7 +68,7 @@ const SearchPane: React.FC<Props> = ({ defaultOpts, onAdded }) => {
                 />
               </td>
               <td>
-                <Button size="small" onClick={() => add(r.id)}>
+                <Button size="small" onClick={() => add(r.id)} disabled={!apiReady}>
                   + Warenkorb
                 </Button>
               </td>
@@ -72,10 +77,24 @@ const SearchPane: React.FC<Props> = ({ defaultOpts, onAdded }) => {
         </tbody>
       </table>
       <div>
-        <Button onClick={async () => { const p = Math.max(0, page - 1); setPage(p); await load(p); }} disabled={page === 0}>
+        <Button
+          onClick={async () => {
+            const p = Math.max(0, page - 1);
+            setPage(p);
+            await load(p);
+          }}
+          disabled={!apiReady || page === 0}
+        >
           Zurück
         </Button>
-        <Button onClick={async () => { const p = page + 1; setPage(p); await load(p); }} disabled={results.length < PAGE_SIZE}>
+        <Button
+          onClick={async () => {
+            const p = page + 1;
+            setPage(p);
+            await load(p);
+          }}
+          disabled={!apiReady || results.length < PAGE_SIZE}
+        >
           Weiter
         </Button>
       </div>

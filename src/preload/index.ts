@@ -35,6 +35,7 @@ const api = {
   shell: {
     open: (path: string) => ipcRenderer.invoke(IPC_CHANNELS.shell.open, path),
   },
+  isReady: () => true,
 };
 
 contextBridge.exposeInMainWorld('api', api);
