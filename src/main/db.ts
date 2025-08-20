@@ -12,9 +12,6 @@ const db = new Database(dbPath);
 ensureSchema(db);
 console.log('Schema OK');
 
-// ensure index on article name for faster searches
-db.exec(`CREATE INDEX IF NOT EXISTS idx_articles_name ON articles(name);`);
-
 db.exec(`
 CREATE TABLE IF NOT EXISTS cart(
   id TEXT PRIMARY KEY,
@@ -24,37 +21,44 @@ CREATE TABLE IF NOT EXISTS cart(
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );`);
 
-const upsertArticle = db.prepare(
-  `INSERT INTO articles (articleNumber, ean, name, price, image, created_at, updated_at)
-VALUES (
-  @articleNumber,
-  @ean,
-  COALESCE(NULLIF(@name, ''), '(ohne Bezeichnung)'),
-  @price,
-  @image,
-  CURRENT_TIMESTAMP,
-  CURRENT_TIMESTAMP
-)
+const upsertArticle = db.prepare(`INSERT INTO articles (articleNumber, ean, name, price, unit, productGroup, updated_at)
+VALUES (@articleNumber, @ean, COALESCE(NULLIF(@name,''),'(ohne Bezeichnung)'), @price, @unit, @productGroup, CURRENT_TIMESTAMP)
 ON CONFLICT(articleNumber) DO UPDATE SET
-  ean=excluded.ean,
-  name=COALESCE(NULLIF(excluded.name, ''), '(ohne Bezeichnung)'),
-  price=excluded.price,
-  image=excluded.image,
-  updated_at=CURRENT_TIMESTAMP;`
-);
+  ean = excluded.ean,
+  name = excluded.name,
+  price = excluded.price,
+  unit = excluded.unit,
+  productGroup = excluded.productGroup,
+  updated_at = CURRENT_TIMESTAMP;`);
+
+const upsertTier = db.prepare(`INSERT INTO price_tiers (articleNumber, qty, price)
+VALUES (@articleNumber, @qty, @price)
+ON CONFLICT(articleNumber, qty) DO UPDATE SET price=excluded.price;`);
 
 export function upsertArticles(batch: any[]) {
   const tx = db.transaction((rows: any[]) => {
     for (const item of rows) {
       const mapped = {
-        articleNumber: item.articleNumber || item.artikelnummer || item.id || '',
+        articleNumber: item.articleNumber || '',
         ean: item.ean || null,
-        name: item.name || item.shortText || item.kurztext || '',
-        price: Number(item.price ?? item.listPrice ?? 0),
-        image: item.image || null,
+        name: item.name || '',
+        price: Number(item.price ?? 0),
+        unit: item.unit || null,
+        productGroup: item.productGroup || null,
       };
       try {
         upsertArticle.run(mapped);
+        if (Array.isArray(item.tiers)) {
+          for (const tier of item.tiers) {
+            if (tier && typeof tier.qty === 'number' && typeof tier.price === 'number') {
+              upsertTier.run({
+                articleNumber: mapped.articleNumber,
+                qty: tier.qty,
+                price: tier.price,
+              });
+            }
+          }
+        }
       } catch (err) {
         (err as any).item = mapped;
         throw err;
@@ -74,25 +78,21 @@ export function searchArticles(opts: {
   const text = opts.text?.trim();
   const limit = typeof opts.limit === 'number' ? opts.limit : 50;
   const offset = typeof opts.offset === 'number' ? opts.offset : 0;
-  const sortBy = ['name', 'articleNumber', 'price'].includes(opts.sortBy || '')
-    ? opts.sortBy!
-    : 'name';
+  const sortBy = ['name', 'articleNumber', 'price'].includes(opts.sortBy || '') ? opts.sortBy! : 'name';
   const sortDir = opts.sortDir === 'DESC' ? 'DESC' : 'ASC';
 
   const where = text
-    ? 'WHERE (name LIKE ? COLLATE NOCASE OR articleNumber LIKE ? COLLATE NOCASE OR ean LIKE ? COLLATE NOCASE)'
+    ? 'WHERE (name LIKE @q COLLATE NOCASE OR articleNumber LIKE @q COLLATE NOCASE OR ean LIKE @q COLLATE NOCASE)'
     : '';
-  const params = text ? [`%${text}%`, `%${text}%`, `%${text}%`] : [];
+  const params: any = { q: text ? `%${text}%` : undefined, limit, offset };
 
-  const totalStmt = db.prepare(
-    `SELECT COUNT(*) as count FROM articles ${where}`,
-  );
-  const total = (totalStmt.get(...params) as any).count as number;
+  const totalStmt = db.prepare(`SELECT COUNT(*) as count FROM articles ${where}`);
+  const total = (totalStmt.get(params) as any).count as number;
 
   const itemsStmt = db.prepare(
-    `SELECT id, articleNumber, ean, name, price FROM articles ${where} ORDER BY ${sortBy} ${sortDir} LIMIT ? OFFSET ?`,
+    `SELECT articleNumber, ean, name, price, unit, productGroup FROM articles ${where} ORDER BY ${sortBy} ${sortDir} LIMIT @limit OFFSET @offset`,
   );
-  const items = itemsStmt.all(...params, limit, offset);
+  const items = itemsStmt.all(params);
 
   return { items, total };
 }

@@ -12,7 +12,7 @@ declare global {
           price?: boolean;
           image?: boolean;
         };
-      }) => Promise<any>;
+      }) => Promise<{ ok: boolean; importedCount: number }>;
       onImportProgress?: (
         cb: (p: { phase: string; current: number; total?: number }) => void,
       ) => () => void;

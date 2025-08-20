@@ -53,7 +53,7 @@ const ImportPane: React.FC = () => {
           image: flags.image,
         },
       });
-      if (res?.imported !== undefined) setImported(res.imported);
+      if (res?.importedCount !== undefined) setImported(res.importedCount);
     } catch (err: any) {
       console.error('importDatanorm failed', err);
       const msg = err?.message || 'Unbekannter Fehler';
