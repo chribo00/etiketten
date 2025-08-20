@@ -61,9 +61,11 @@ export async function importDatanorm(filePathOrZip: string, sender?: WebContents
     const batch: ArticleInput[] = [];
     for (const line of lines) {
       const cols = parseCsv(line);
+      const name = cols[1] || '';
       const article: ArticleInput = {
         id: cols[0],
         articleNumber: cols[0],
+        name,
         shortText: cols[1],
         longText: cols[2],
         ean: cols[3],
@@ -72,16 +74,28 @@ export async function importDatanorm(filePathOrZip: string, sender?: WebContents
       };
       batch.push(article);
       if (batch.length >= 1000) {
-        upsertArticles(batch);
-        imported += batch.length;
-        sender?.send('datanorm:progress', { phase: 'import', current: imported, total });
-        batch.length = 0;
+        try {
+          upsertArticles(batch);
+          imported += batch.length;
+          sender?.send('datanorm:progress', { phase: 'import', current: imported, total });
+          batch.length = 0;
+        } catch (err) {
+          (err as any).imported = imported;
+          (err as any).items = batch;
+          throw err;
+        }
       }
     }
     if (batch.length) {
-      upsertArticles(batch);
-      imported += batch.length;
-      sender?.send('datanorm:progress', { phase: 'import', current: imported, total });
+      try {
+        upsertArticles(batch);
+        imported += batch.length;
+        sender?.send('datanorm:progress', { phase: 'import', current: imported, total });
+      } catch (err) {
+        (err as any).imported = imported;
+        (err as any).items = batch;
+        throw err;
+      }
     }
   }
   return imported;
