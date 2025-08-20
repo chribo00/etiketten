@@ -2,8 +2,6 @@ import { app, BrowserWindow } from 'electron';
 import path from 'path';
 import { registerIpcHandlers } from './ipc/index';
 
-const preloadPath = path.resolve(__dirname, '../../build/preload.js');
-
 async function createWindow() {
   const win = new BrowserWindow({
     width: 1280,
@@ -13,7 +11,7 @@ async function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
-      preload: preloadPath,
+      preload: path.resolve(__dirname, '../../build/preload.js'),
     },
   });
 
