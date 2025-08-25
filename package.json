@@ -13,7 +13,8 @@
     "pack": "electron-builder --dir",
     "dist": "npm run build:renderer && electron-builder",
     "rebuild-native": "electron-rebuild -f -w better-sqlite3 -w sharp",
-    "postinstall": "electron-builder install-app-deps",
+    "postinstall": "electron-rebuild",
+    "rebuild:electron": "electron-rebuild -f -w better-sqlite3",
     "test": "jest",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
@@ -45,7 +46,7 @@
     "cross-env": "^7.0.0",
     "wait-on": "^7.0.0",
     "electron-builder": "^24.0.0",
-    "electron-rebuild": "^3.2.0",
+    "electron-rebuild": "^3.7.0",
     "@types/node": "^20.0.0",
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
