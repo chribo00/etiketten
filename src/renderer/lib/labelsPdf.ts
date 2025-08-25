@@ -84,14 +84,16 @@ export async function generateLabelsPdf(
           conf.labelW - 6,
           conf.barcodeH
         );
+        const barcodeY = cursorY; // start barcode below price with margin
         doc.addImage(
           png,
           'PNG',
           x + 3,
-          y + conf.labelH - conf.barcodeH - 1,
+          barcodeY,
           conf.labelW - 6,
           conf.barcodeH
         );
+        cursorY = barcodeY + conf.barcodeH;
         barcodeCount++;
         if (barcodeCount % 8 === 0) await Promise.resolve();
       }
