@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Input, Checkbox } from '@fluentui/react-components';
+import CategoryManager from './CategoryManager';
 import { z } from 'zod';
 import { generateLabelsPdf } from '../lib/labelsPdf';
 import type { LabelConfig } from '../lib/labels';
@@ -28,6 +29,7 @@ const ArticleSearch: React.FC = () => {
     const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
     const [searchCategory, setSearchCategory] = useState<number | undefined>();
     const [newCategoryId, setNewCategoryId] = useState<number | undefined>();
+    const [catManagerOpen, setCatManagerOpen] = useState(false);
 
     const templates: Record<string, Partial<LabelConfig>> = {
       'a4-3x8': {},
@@ -114,7 +116,11 @@ const ArticleSearch: React.FC = () => {
       loadCategories();
     };
     window.addEventListener('articles:refresh', handler);
-    return () => window.removeEventListener('articles:refresh', handler);
+    window.addEventListener('categories:refresh', loadCategories);
+    return () => {
+      window.removeEventListener('articles:refresh', handler);
+      window.removeEventListener('categories:refresh', loadCategories);
+    };
   }, []);
 
   const onSearch = async () => {
@@ -306,19 +312,34 @@ const ArticleSearch: React.FC = () => {
             disabled={!apiReady || loading}
           />
           <select
-            value={searchCategory?.toString() || ''}
+            value={searchCategory !== undefined ? searchCategory.toString() : ''}
             onChange={async (e) => {
               const val = e.target.value;
-              setSearchCategory(val ? Number(val) : undefined);
+              if (val === '__new') {
+                const name = prompt('Neue Kategorie');
+                if (name) {
+                  const res = await window.bridge?.categories?.create(name);
+                  await loadCategories();
+                  if (res?.id) window.dispatchEvent(new Event('categories:refresh'));
+                }
+                return;
+              }
+              if (val === '') setSearchCategory(undefined);
+              else setSearchCategory(Number(val));
             }}
           >
             <option value="">Alle Kategorien</option>
+            <option value="0">(keine Kategorie)</option>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
               </option>
             ))}
+            <option value="__new">Neue Kategorie…</option>
           </select>
+          <Button size="small" onClick={() => setCatManagerOpen(true)}>
+            Kategorien verwalten…
+          </Button>
           <Button onClick={onSearch} disabled={!apiReady || loading}>
             Suchen
           </Button>
@@ -511,8 +532,12 @@ const ArticleSearch: React.FC = () => {
                 if (val === '__new') {
                   const name = prompt('Neue Kategorie');
                   if (name) {
-                    await window.bridge?.categories?.create(name);
+                    const res = await window.bridge?.categories?.create(name);
                     await loadCategories();
+                    if (res?.id) {
+                      setNewCategoryId(res.id);
+                      window.dispatchEvent(new Event('categories:refresh'));
+                    }
                   }
                   return;
                 }
@@ -527,6 +552,9 @@ const ArticleSearch: React.FC = () => {
               ))}
               <option value="__new">Neue Kategorie…</option>
             </select>
+            <Button size="small" onClick={() => setCatManagerOpen(true)}>
+              Kategorien verwalten…
+            </Button>
             <Checkbox
               checked={addToCart}
               onChange={(_, d) => setAddToCart(d.checked)}
@@ -593,8 +621,10 @@ const ArticleSearch: React.FC = () => {
           </div>
         </div>
       </div>
-    );
-  };
+      <CategoryManager open={catManagerOpen} onClose={() => setCatManagerOpen(false)} />
+    </div>
+  );
+};
 
 export default ArticleSearch;
 

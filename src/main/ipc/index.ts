@@ -11,6 +11,8 @@ import {
   searchAllArticles,
   listCategories,
   createCategory,
+  renameCategory,
+  deleteCategory,
 } from '../db';
 import { registerCartHandlers } from './cart';
 import { registerLabelsHandlers } from './labels';
@@ -27,15 +29,19 @@ export function registerIpcHandlers() {
     return res;
   });
 
-    ipcMain.handle('articles:search', async (_e, opts) => searchArticles(opts));
-    ipcMain.handle('articles:searchAll', async (_e, opts) => searchAllArticles(opts));
+  ipcMain.handle('articles:search', async (_e, opts) => searchArticles(opts));
+  ipcMain.handle('articles:searchAll', async (_e, opts) => searchAllArticles(opts));
 
-    ipcMain.handle('custom:create', (_e, payload) => createCustomArticle(payload));
-    ipcMain.handle('custom:update', (_e, { id, patch }) => updateCustomArticle(id, patch));
-    ipcMain.handle('custom:delete', (_e, id) => deleteCustomArticle(id));
+  ipcMain.handle('custom:create', (_e, payload) => createCustomArticle(payload));
+  ipcMain.handle('custom:update', (_e, { id, patch }) => updateCustomArticle(id, patch));
+  ipcMain.handle('custom:delete', (_e, id) => deleteCustomArticle(id));
 
   ipcMain.handle('categories:list', () => listCategories());
   ipcMain.handle('categories:create', (_e, name) => createCategory(name));
+  ipcMain.handle('categories:update', (_e, { id, name }) => renameCategory(id, name));
+  ipcMain.handle('categories:delete', (_e, payload) =>
+    deleteCategory(payload.id, payload.mode, payload.reassignToId),
+  );
 
   ipcMain.handle('db:info', () => getDbInfo());
 

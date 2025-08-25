@@ -29,6 +29,9 @@ const bridge = {
   categories: {
     list: () => ipcRenderer.invoke('categories:list'),
     create: (name: string) => ipcRenderer.invoke('categories:create', name),
+    update: (id: number, name: string) => ipcRenderer.invoke('categories:update', { id, name }),
+    delete: (id: number, mode: 'reassign' | 'deleteArticles', reassignToId?: number | null) =>
+      ipcRenderer.invoke('categories:delete', { id, mode, reassignToId }),
   },
   dbInfo: () => ipcRenderer.invoke('db:info'),
   dbClear: () => ipcRenderer.invoke('db:clear'),

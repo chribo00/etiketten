@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3';
 
 export function ensureSchema(db: Database) {
   db.pragma('journal_mode = WAL');
+  db.pragma('foreign_keys = ON');
   db.exec(`
   CREATE TABLE IF NOT EXISTS articles (
   id INTEGER PRIMARY KEY,
@@ -135,8 +136,16 @@ export function ensureSchema(db: Database) {
   db.exec(`
   CREATE TABLE IF NOT EXISTS categories (
     id INTEGER PRIMARY KEY,
-    name TEXT UNIQUE NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    name TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME
   );
   `);
+
+  const catCols = db.prepare(`PRAGMA table_info(categories)`).all() as any[];
+  const catNames = catCols.map((c) => c.name);
+  if (!catNames.includes('updated_at')) {
+    db.exec(`ALTER TABLE categories ADD COLUMN updated_at DATETIME;`);
+  }
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_name ON categories(LOWER(name));`);
 }

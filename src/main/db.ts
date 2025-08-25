@@ -71,14 +71,88 @@ export function clearArticles() {
   return res.changes;
 }
 
+const CAT_NAME_RE = /^[A-Za-z0-9ÄÖÜäöüß _\-\.\/&]+$/;
+
+function validateCategoryName(name: string) {
+  const trimmed = name.trim();
+  if (trimmed.length < 1 || trimmed.length > 50) return false;
+  if (!CAT_NAME_RE.test(trimmed)) return false;
+  return true;
+}
+
 export function listCategories() {
-  return db.prepare('SELECT id, name FROM categories ORDER BY name ASC').all();
+  return db.prepare('SELECT id, name FROM categories ORDER BY name COLLATE NOCASE ASC').all();
 }
 
 export function createCategory(name: string) {
+  const trimmed = name.trim();
+  if (!validateCategoryName(trimmed)) return { error: 'VALIDATION_ERROR' };
   const stmt = db.prepare('INSERT INTO categories (name) VALUES (?)');
-  const res = stmt.run(name.trim());
-  return { id: Number(res.lastInsertRowid) };
+  try {
+    const res = stmt.run(trimmed);
+    return { id: Number(res.lastInsertRowid) };
+  } catch (e: any) {
+    if (String(e.message).includes('UNIQUE')) return { error: 'DUPLICATE_NAME' };
+    throw e;
+  }
+}
+
+export function renameCategory(id: number, newName: string) {
+  const trimmed = newName.trim();
+  if (!validateCategoryName(trimmed)) return { error: 'VALIDATION_ERROR' };
+  const tx = db.transaction((cid: number, name: string) => {
+    const res = db
+      .prepare('UPDATE categories SET name=?, updated_at=CURRENT_TIMESTAMP WHERE id=?')
+      .run(name, cid);
+    if (res.changes === 0) return { error: 'NOT_FOUND' };
+    return { changes: res.changes };
+  });
+  try {
+    return tx(id, trimmed);
+  } catch (e: any) {
+    if (String(e.message).includes('UNIQUE')) return { error: 'DUPLICATE_NAME' };
+    throw e;
+  }
+}
+
+export function deleteCategory(
+  id: number,
+  mode: 'reassign' | 'deleteArticles',
+  reassignToId?: number | null,
+) {
+  const cat = db.prepare('SELECT id FROM categories WHERE id=?').get(id);
+  if (!cat) return { error: 'NOT_FOUND' };
+
+  const countArticles = (db.prepare('SELECT COUNT(*) as c FROM articles WHERE category_id=?').get(id) as any).c as number;
+  const countCustom = (
+    db.prepare('SELECT COUNT(*) as c FROM custom_articles WHERE category_id=?').get(id) as any
+  ).c as number;
+  const total = countArticles + countCustom;
+
+  if (mode === 'reassign') {
+    if (total > 0 && reassignToId === undefined) return { error: 'HAS_ARTICLES' };
+    if (reassignToId != null) {
+      const target = db.prepare('SELECT id FROM categories WHERE id=?').get(reassignToId);
+      if (!target) return { error: 'NOT_FOUND' };
+    }
+    const tx = db.transaction(() => {
+      db.prepare('UPDATE articles SET category_id=? WHERE category_id=?').run(reassignToId ?? null, id);
+      db.prepare('UPDATE custom_articles SET category_id=? WHERE category_id=?').run(reassignToId ?? null, id);
+      db.prepare('DELETE FROM categories WHERE id=?').run(id);
+    });
+    tx();
+    return { deleted: true };
+  }
+  if (mode === 'deleteArticles') {
+    const tx = db.transaction(() => {
+      db.prepare('DELETE FROM articles WHERE category_id=?').run(id);
+      db.prepare('DELETE FROM custom_articles WHERE category_id=?').run(id);
+      db.prepare('DELETE FROM categories WHERE id=?').run(id);
+    });
+    tx();
+    return { deleted: true };
+  }
+  return { error: 'VALIDATION_ERROR' };
 }
 
 export function searchArticles(opts: {
@@ -99,7 +173,8 @@ export function searchArticles(opts: {
   const params: any = { q: text ? `%${text}%` : undefined, limit, offset, category: opts.categoryId };
   if (text)
     whereParts.push('(name LIKE @q COLLATE NOCASE OR articleNumber LIKE @q COLLATE NOCASE OR ean LIKE @q COLLATE NOCASE)');
-  if (opts.categoryId) whereParts.push('category_id = @category');
+  if (opts.categoryId === 0) whereParts.push('category_id IS NULL');
+  else if (opts.categoryId) whereParts.push('category_id = @category');
   const where = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
 
   const totalStmt = db.prepare(`SELECT COUNT(*) as count FROM articles ${where}`);
@@ -131,7 +206,8 @@ export function searchAllArticles(opts: {
   const params: any = { q: text ? `%${text}%` : undefined, limit, offset, category: opts.categoryId };
   if (text)
     whereParts.push('(name LIKE @q COLLATE NOCASE OR articleNumber LIKE @q COLLATE NOCASE OR ean LIKE @q COLLATE NOCASE)');
-  if (opts.categoryId) whereParts.push('category_id = @category');
+  if (opts.categoryId === 0) whereParts.push('category_id IS NULL');
+  else if (opts.categoryId) whereParts.push('category_id = @category');
   const where = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
 
   const totalStmt = db.prepare(
