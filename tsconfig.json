@@ -10,7 +10,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "sourceMap": true,
-    "types": ["node"]
+    "types": ["node", "jest"]
   },
     "include": ["src/main/**/*.ts", "src/preload.ts", "src/renderer/**/*.d.ts", "src/types/**/*.d.ts"]
   }

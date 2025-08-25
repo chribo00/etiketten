@@ -2,3 +2,41 @@ body {
   margin: 0;
   font-family: sans-serif;
 }
+
+.label {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.label__sku,
+.label__title,
+.label__price,
+.label__barcode,
+.label__image {
+  display: block;
+  width: 100%;
+}
+
+.label__price {
+  font-size: 18px;
+  font-weight: bold;
+  margin: 4px 0 8px 0;
+  line-height: 1.3;
+}
+
+.label__barcode {
+  margin-top: 10px;
+}
+
+.label__barcode svg,
+.label__barcode canvas {
+  display: block;
+  margin: 0;
+}
+
+.label__image {
+  width: 60px;
+  height: 60px;
+  background: #ccc;
+}

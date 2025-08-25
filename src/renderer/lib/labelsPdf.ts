@@ -75,7 +75,8 @@ export async function generateLabelsPdf(
       if (item.ean && isValidEan13(item.ean)) {
         code = item.ean;
       } else if (item.articleNumber) {
-        code = fromArticleToEan13(item.articleNumber) || item.articleNumber;
+        const ean = fromArticleToEan13(item.articleNumber);
+        if (ean) code = ean;
       }
 
       if (code) {
