@@ -3,6 +3,7 @@ import { app } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { ensureSchema } from './db.migrations';
+import { parseSearch } from './search';
 
 const dataDir = path.join(app.getPath('userData'), 'data');
 fs.mkdirSync(dataDir, { recursive: true });
@@ -155,36 +156,73 @@ export function deleteCategory(
   return { error: 'VALIDATION_ERROR' };
 }
 
+function categoryCond(alias: string, id?: number) {
+  if (id === undefined) return '1=1';
+  if (id === 0) return `${alias}.category_id IS NULL`;
+  return `${alias}.category_id = @category`;
+}
+
+function likeEscape(s: string) {
+  return s.replace(/[%_]/g, (c) => `\\${c}`);
+}
+
 export function searchArticles(opts: {
   text?: string;
   limit?: number;
   offset?: number;
-  sortBy?: 'name' | 'articleNumber' | 'price';
-  sortDir?: 'ASC' | 'DESC';
   categoryId?: number;
 }) {
   const text = opts.text?.trim();
   const limit = typeof opts.limit === 'number' ? opts.limit : 50;
   const offset = typeof opts.offset === 'number' ? opts.offset : 0;
-  const sortBy = ['name', 'articleNumber', 'price'].includes(opts.sortBy || '') ? opts.sortBy! : 'name';
-  const sortDir = opts.sortDir === 'DESC' ? 'DESC' : 'ASC';
+  const catCond = categoryCond('a', opts.categoryId);
 
-  const whereParts: string[] = [];
-  const params: any = { q: text ? `%${text}%` : undefined, limit, offset, category: opts.categoryId };
-  if (text)
-    whereParts.push('(name LIKE @q COLLATE NOCASE OR articleNumber LIKE @q COLLATE NOCASE OR ean LIKE @q COLLATE NOCASE)');
-  if (opts.categoryId === 0) whereParts.push('category_id IS NULL');
-  else if (opts.categoryId) whereParts.push('category_id = @category');
-  const where = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
+  if (!text) {
+    const where = catCond !== '1=1' ? `WHERE ${catCond}` : '';
+    const params: any = { limit, offset, category: opts.categoryId };
+    const total = (db.prepare(`SELECT COUNT(*) as c FROM articles ${where}`).get(params) as any).c as number;
+    const items = db
+      .prepare(
+        `SELECT articleNumber, ean, name, price, unit, productGroup, category_id FROM articles ${where} ORDER BY name COLLATE NOCASE ASC, articleNumber COLLATE NOCASE ASC LIMIT @limit OFFSET @offset`,
+      )
+      .all(params);
+    return { items, total };
+  }
 
-  const totalStmt = db.prepare(`SELECT COUNT(*) as count FROM articles ${where}`);
-  const total = (totalStmt.get(params) as any).count as number;
+  const parsed = parseSearch(text);
+  if (!parsed.match) return { items: [], total: 0 };
 
-  const itemsStmt = db.prepare(
-    `SELECT articleNumber, ean, name, price, unit, productGroup, category_id FROM articles ${where} ORDER BY ${sortBy} ${sortDir} LIMIT @limit OFFSET @offset`,
-  );
-  const items = itemsStmt.all(params);
-
+  const params: any = { match: parsed.match, limit, offset, category: opts.categoryId };
+  const base = `WITH q AS (
+    SELECT rowid, -bm25(articles_fts) AS rank FROM articles_fts WHERE rowid>0 AND articles_fts MATCH @match
+  )`;
+  const countSql = `${base} SELECT COUNT(*) as c FROM q JOIN articles a ON a.id=q.rowid WHERE ${catCond}`;
+  let total = (db.prepare(countSql).get(params) as any).c as number;
+  let items: any[] = [];
+  if (total > 0) {
+    const itemsSql = `${base}
+      SELECT a.id, a.articleNumber, a.ean, a.name, a.price, a.unit, a.productGroup, a.category_id, q.rank
+      FROM q JOIN articles a ON a.id=q.rowid
+      WHERE ${catCond}
+      ORDER BY q.rank DESC, a.name COLLATE NOCASE ASC, a.articleNumber COLLATE NOCASE ASC
+      LIMIT @limit OFFSET @offset`;
+    items = db.prepare(itemsSql).all(params);
+  } else if (parsed.terms.length) {
+    const likeParams: any = { limit, offset, category: opts.categoryId };
+    const conds: string[] = [];
+    parsed.terms.forEach((t, i) => {
+      const k = `p${i}`;
+      likeParams[k] = `%${likeEscape(t)}%`;
+      conds.push(`(a.name LIKE @${k} ESCAPE '\\' COLLATE NOCASE OR a.articleNumber LIKE @${k} COLLATE NOCASE OR a.ean LIKE @${k} COLLATE NOCASE)`);
+    });
+    const where = conds.length ? conds.join(' AND ') : '1';
+    const countLike = `SELECT COUNT(*) as c FROM articles a WHERE ${where} AND ${catCond}`;
+    total = (db.prepare(countLike).get(likeParams) as any).c as number;
+    if (total > 0) {
+      const itemsLike = `SELECT id, articleNumber, ean, name, price, unit, productGroup, category_id FROM articles a WHERE ${where} AND ${catCond} ORDER BY a.name COLLATE NOCASE ASC, a.articleNumber COLLATE NOCASE ASC LIMIT @limit OFFSET @offset`;
+      items = db.prepare(itemsLike).all(likeParams);
+    }
+  }
   return { items, total };
 }
 
@@ -192,41 +230,94 @@ export function searchAllArticles(opts: {
   text?: string;
   limit?: number;
   offset?: number;
-  sortBy?: 'name' | 'articleNumber' | 'price';
-  sortDir?: 'ASC' | 'DESC';
   categoryId?: number;
 }) {
   const text = opts.text?.trim();
   const limit = typeof opts.limit === 'number' ? opts.limit : 50;
   const offset = typeof opts.offset === 'number' ? opts.offset : 0;
-  const sortBy = ['name', 'articleNumber', 'price'].includes(opts.sortBy || '') ? opts.sortBy! : 'name';
-  const sortDir = opts.sortDir === 'DESC' ? 'DESC' : 'ASC';
+  const condA = categoryCond('a', opts.categoryId);
+  const condC = categoryCond('c', opts.categoryId);
 
-  const whereParts: string[] = [];
-  const params: any = { q: text ? `%${text}%` : undefined, limit, offset, category: opts.categoryId };
-  if (text)
-    whereParts.push('(name LIKE @q COLLATE NOCASE OR articleNumber LIKE @q COLLATE NOCASE OR ean LIKE @q COLLATE NOCASE)');
-  if (opts.categoryId === 0) whereParts.push('category_id IS NULL');
-  else if (opts.categoryId) whereParts.push('category_id = @category');
-  const where = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
+  if (!text) {
+    const whereA = condA !== '1=1' ? `WHERE ${condA}` : '';
+    const whereC = condC !== '1=1' ? `WHERE ${condC}` : '';
+    const params: any = { limit, offset, category: opts.categoryId };
+    const total = (db
+      .prepare(`SELECT COUNT(*) as c FROM (SELECT id FROM articles ${whereA} UNION ALL SELECT id FROM custom_articles ${whereC})`)
+      .get(params) as any).c as number;
+    const items = db
+      .prepare(
+        `SELECT id, articleNumber, ean, name, price, unit, productGroup, category_id, 'import' AS source FROM articles ${whereA}
+         UNION ALL
+         SELECT id, articleNumber, ean, name, price, unit, productGroup, category_id, 'custom' AS source FROM custom_articles ${whereC}
+         ORDER BY name COLLATE NOCASE ASC, articleNumber COLLATE NOCASE ASC LIMIT @limit OFFSET @offset`,
+      )
+      .all(params);
+    return { items, total };
+  }
 
-  const totalStmt = db.prepare(
-    `SELECT COUNT(*) as count FROM (
-      SELECT id FROM articles ${where}
+  const parsed = parseSearch(text);
+  if (!parsed.match) return { items: [], total: 0 };
+
+  const params: any = { match: parsed.match, limit, offset, category: opts.categoryId };
+  const base = `WITH q AS (
+    SELECT rowid, -bm25(articles_fts) AS rank FROM articles_fts WHERE articles_fts MATCH @match
+  )`;
+  const countSql = `${base} SELECT COUNT(*) as c FROM (
+      SELECT 1 FROM q JOIN articles a ON a.id=q.rowid WHERE q.rowid>0 AND ${condA}
       UNION ALL
-      SELECT id FROM custom_articles ${where}
-    )`,
-  );
-  const total = (totalStmt.get(params) as any).count as number;
-
-  const itemsStmt = db.prepare(
-    `SELECT id, articleNumber, ean, name, price, unit, productGroup, category_id, 'import' AS source FROM articles ${where}
-     UNION ALL
-     SELECT id, articleNumber, ean, name, price, unit, productGroup, category_id, 'custom' AS source FROM custom_articles ${where}
-     ORDER BY ${sortBy} ${sortDir} LIMIT @limit OFFSET @offset`,
-  );
-  const items = itemsStmt.all(params);
-
+      SELECT 1 FROM q JOIN custom_articles c ON c.id=-q.rowid WHERE q.rowid<0 AND ${condC}
+    )`;
+  let total = (db.prepare(countSql).get(params) as any).c as number;
+  let items: any[] = [];
+  if (total > 0) {
+    const itemsSql = `${base}
+      SELECT a.id, a.articleNumber, a.ean, a.name, a.price, a.unit, a.productGroup, a.category_id, 'import' AS source, q.rank
+      FROM q JOIN articles a ON a.id=q.rowid
+      WHERE q.rowid>0 AND ${condA}
+      UNION ALL
+      SELECT c.id, c.articleNumber, c.ean, c.name, c.price, c.unit, c.productGroup, c.category_id, 'custom' AS source, q.rank
+      FROM q JOIN custom_articles c ON c.id=-q.rowid
+      WHERE q.rowid<0 AND ${condC}
+      ORDER BY q.rank DESC, name COLLATE NOCASE ASC, articleNumber COLLATE NOCASE ASC
+      LIMIT @limit OFFSET @offset`;
+    items = db.prepare(itemsSql).all(params);
+  } else if (parsed.terms.length) {
+    const likeParams: any = { limit, offset, category: opts.categoryId };
+    const condsA: string[] = [];
+    const condsC: string[] = [];
+    parsed.terms.forEach((t, i) => {
+      const k = `p${i}`;
+      likeParams[k] = `%${likeEscape(t)}%`;
+      condsA.push(
+        `(a.name LIKE @${k} ESCAPE '\\' COLLATE NOCASE OR a.articleNumber LIKE @${k} COLLATE NOCASE OR a.ean LIKE @${k} COLLATE NOCASE OR cat.name LIKE @${k} COLLATE NOCASE)`,
+      );
+      condsC.push(
+        `(c.name LIKE @${k} ESCAPE '\\' COLLATE NOCASE OR c.articleNumber LIKE @${k} COLLATE NOCASE OR c.ean LIKE @${k} COLLATE NOCASE OR cat.name LIKE @${k} COLLATE NOCASE)`,
+      );
+    });
+    const whereA = condsA.length ? condsA.join(' AND ') : '1';
+    const whereC = condsC.length ? condsC.join(' AND ') : '1';
+    const countLike = `SELECT COUNT(*) as c FROM (
+        SELECT 1 FROM articles a LEFT JOIN categories cat ON cat.id=a.category_id WHERE ${whereA} AND ${condA}
+        UNION ALL
+        SELECT 1 FROM custom_articles c LEFT JOIN categories cat ON cat.id=c.category_id WHERE ${whereC} AND ${condC}
+      )`;
+    total = (db.prepare(countLike).get(likeParams) as any).c as number;
+    if (total > 0) {
+      const itemsLike = `
+        SELECT id, articleNumber, ean, name, price, unit, productGroup, category_id, 'import' AS source, 0 AS rank
+        FROM articles a LEFT JOIN categories cat ON cat.id=a.category_id
+        WHERE ${whereA} AND ${condA}
+        UNION ALL
+        SELECT id, articleNumber, ean, name, price, unit, productGroup, category_id, 'custom' AS source, 0 AS rank
+        FROM custom_articles c LEFT JOIN categories cat ON cat.id=c.category_id
+        WHERE ${whereC} AND ${condC}
+        ORDER BY name COLLATE NOCASE ASC, articleNumber COLLATE NOCASE ASC
+        LIMIT @limit OFFSET @offset`;
+      items = db.prepare(itemsLike).all(likeParams);
+    }
+  }
   return { items, total };
 }
 
