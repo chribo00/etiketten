@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Checkbox, Select } from '@fluentui/react-components';
+import CategoryManager from './CategoryManager';
 
 const ImportPane: React.FC = () => {
   const [selected, setSelected] = useState<{ filePath: string; name: string } | null>(null);
@@ -15,6 +16,7 @@ const ImportPane: React.FC = () => {
   const [dbInfoText, setDbInfoText] = useState('');
   const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
   const [categoryId, setCategoryId] = useState<number | undefined>(undefined);
+  const [catManagerOpen, setCatManagerOpen] = useState(false);
 
   const loadInfo = async () => {
     const info = await window.bridge?.dbInfo?.();
@@ -29,6 +31,9 @@ const ImportPane: React.FC = () => {
   useEffect(() => {
     loadInfo();
     loadCategories();
+    const handler = () => loadCategories();
+    window.addEventListener('categories:refresh', handler);
+    return () => window.removeEventListener('categories:refresh', handler);
   }, []);
 
   const pickFile = async () => {
@@ -63,6 +68,7 @@ const ImportPane: React.FC = () => {
       const res = await window.bridge?.categories?.create(name);
       await loadCategories();
       if (res?.id) setCategoryId(res.id);
+      window.dispatchEvent(new Event('categories:refresh'));
     }
   };
 
@@ -92,6 +98,9 @@ const ImportPane: React.FC = () => {
             <option value="__new">Neue Kategorie…</option>
           </Select>
         </label>
+        <Button size="small" style={{ marginLeft: 8 }} onClick={() => setCatManagerOpen(true)}>
+          Kategorien verwalten…
+        </Button>
       </div>
       <div>
         <Checkbox label="Artikelnummer" checked={flags.articleNumber} onChange={toggle('articleNumber')} />
@@ -105,6 +114,7 @@ const ImportPane: React.FC = () => {
       </Button>
       {importSummary && <div>{importSummary}</div>}
       {dbInfoText && <div>{dbInfoText}</div>}
+      <CategoryManager open={catManagerOpen} onClose={() => setCatManagerOpen(false)} />
     </div>
   );
 };

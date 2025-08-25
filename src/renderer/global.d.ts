@@ -31,6 +31,12 @@ declare global {
         categories?: {
           list: () => Promise<{ id: number; name: string }[]>;
           create: (name: string) => Promise<{ id: number }>;
+          update: (id: number, name: string) => Promise<{ changes?: number; error?: string }>;
+          delete: (
+            id: number,
+            mode: 'reassign' | 'deleteArticles',
+            reassignToId?: number | null,
+          ) => Promise<{ deleted?: boolean; error?: string }>;
         };
       dbInfo?: () => Promise<{ path: string; rowCount: number }>;
       dbClear?: () => Promise<number>;
