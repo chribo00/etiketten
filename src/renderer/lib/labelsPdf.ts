@@ -68,7 +68,7 @@ export async function generateLabelsPdf(
         const priceStr = currency.format(item.price);
         doc.text(priceStr, x + 3, cursorY, { baseline: 'top' });
         const priceHeight = doc.getTextDimensions(priceStr).h;
-        cursorY += priceHeight + 2;
+        cursorY += priceHeight + 3;
       }
 
       let code: string | undefined = undefined;
@@ -84,7 +84,7 @@ export async function generateLabelsPdf(
           conf.labelW - 6,
           conf.barcodeH
         );
-        const barcodeY = cursorY; // start barcode below price with margin
+        const barcodeY = cursorY;
         doc.addImage(
           png,
           'PNG',

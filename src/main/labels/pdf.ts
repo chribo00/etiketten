@@ -59,17 +59,25 @@ export async function generateLabelsPdf(items: Array<{ articleId: string; qty: n
       cursorY = doc.y + mm(2);
     }
     if (it.options.showListPrice && art.listPrice) {
-      doc.fontSize(16).font('Helvetica-Bold').text(`${art.listPrice.toFixed(2)} €`, mm(2), cursorY);
+      doc
+        .fontSize(16)
+        .font('Helvetica-Bold')
+        .text(`${art.listPrice.toFixed(2)} €`, mm(2), cursorY);
       doc.font('Helvetica');
-      cursorY = doc.y + mm(2);
+      cursorY = doc.y + mm(3);
     }
     if (it.options.showImage && art.imagePath && fs.existsSync(art.imagePath)) {
-      doc.image(art.imagePath, mm(2), cursorY, { width: mm(38), height: mm(18), fit: [mm(38), mm(18)] });
-      cursorY += mm(18) + mm(2);
+      doc.image(art.imagePath, mm(2), cursorY, {
+        width: mm(38),
+        height: mm(18),
+        fit: [mm(38), mm(18)],
+      });
+      cursorY += mm(18) + mm(3);
     }
     if (it.options.showEan && art.ean) {
       const png = await renderBarcode(art.ean);
-      doc.image(png, mm(2), PAGE.h - mm(22) - mm(2), { width: mm(48), height: mm(22) });
+      doc.image(png, mm(2), cursorY, { width: mm(48), height: mm(22) });
+      cursorY += mm(22);
     }
   }
 

@@ -29,13 +29,16 @@ const LabelPreview: React.FC<Props> = ({ opts }) => {
       ctx.fillText('9,99 €', 10, y);
       y += 20;
     }
-    if (opts.showEan) {
-      ctx.fillRect(10, 90, 120, 40);
-    }
     if (opts.showImage) {
       ctx.fillStyle = '#ccc';
-      ctx.fillRect(10, 60, 60, 60);
+      ctx.fillRect(10, y, 60, 60);
       ctx.fillStyle = '#000';
+      y += 60;
+    }
+    if (opts.showEan) {
+      y += 10;
+      ctx.fillRect(10, y, 120, 40);
+      y += 40;
     }
   }, [opts]);
   return <canvas ref={canvasRef} width={300} height={150} />;
