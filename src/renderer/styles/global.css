@@ -9,7 +9,6 @@ body {
   align-items: flex-start;
   gap: 4px;
   padding-left: 3mm;
-  page-break-inside: avoid;
 }
 
 .label__sku,
@@ -31,6 +30,7 @@ body {
 .label__barcode {
   margin-top: 12px;
   position: static;
+  overflow: visible;
 }
 
 .label__barcode svg,
@@ -44,4 +44,11 @@ body {
   width: 60px;
   height: 60px;
   background: #ccc;
+}
+
+@media print {
+  .label {
+    margin-bottom: 2cm;
+    page-break-inside: avoid;
+  }
 }

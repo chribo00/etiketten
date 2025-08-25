@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf';
-import { A4_3x8, LabelConfig, fromArticleToEan13, isValidEan13, renderEanPng } from './labels';
+import { A4_3x8, LabelConfig, renderBarcodePng } from './labels';
 
 export type CartItem = {
   name: string;
@@ -71,17 +71,9 @@ export async function generateLabelsPdf(
         cursorY += priceHeight + 4;
       }
 
-      let code: string | undefined = undefined;
-      if (item.ean && isValidEan13(item.ean)) {
-        code = item.ean;
-      } else if (item.articleNumber) {
-        const ean = fromArticleToEan13(item.articleNumber);
-        if (ean) code = ean;
-      }
-
-      if (code) {
-        const png = await renderEanPng(
-          code,
+      if (item.articleNumber) {
+        const png = await renderBarcodePng(
+          item.articleNumber,
           conf.labelW - 6,
           conf.barcodeH
         );
