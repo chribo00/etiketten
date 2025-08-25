@@ -150,10 +150,24 @@ export function ensureSchema(db: Database) {
   db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_name ON categories(LOWER(name));`);
 
   // FTS table for fast article search
-  db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS articles_fts USING fts5(
-    articleNumber, name, kurztext2, langtext, matchcode, ean, supplierName, category_name,
-    tokenize='unicode61 remove_diacritics 2 tokenchars "-_./"'
-  );`);
+  try {
+    db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS articles_fts USING fts5(
+      articleNumber, name, kurztext2, langtext, matchcode, ean, supplierName, category_name,
+      tokenize='unicode61 remove_diacritics 2 tokenchars ''-_.'''
+    );`);
+  } catch (err) {
+    if (String(err).toLowerCase().includes('tokenize')) {
+      console.warn(
+        'FTS5 tokenizer "remove_diacritics" not supported, falling back without diacritic removal',
+      );
+      db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS articles_fts USING fts5(
+        articleNumber, name, kurztext2, langtext, matchcode, ean, supplierName, category_name,
+        tokenize='unicode61 tokenchars ''-_.'''
+      );`);
+    } else {
+      throw err;
+    }
+  }
 
   // keep FTS table in sync with articles
   db.exec(`CREATE TRIGGER IF NOT EXISTS articles_ai AFTER INSERT ON articles BEGIN
@@ -204,5 +218,8 @@ export function ensureSchema(db: Database) {
     db.exec(`INSERT INTO articles_fts(rowid, articleNumber, name, ean, category_name)
       SELECT -c.id, c.articleNumber, c.name, c.ean, cat.name
       FROM custom_articles c LEFT JOIN categories cat ON cat.id=c.category_id;`);
+    try {
+      db.exec(`INSERT INTO articles_fts(articles_fts) VALUES('optimize');`);
+    } catch {}
   }
 }
