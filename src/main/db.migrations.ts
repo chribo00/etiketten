@@ -11,6 +11,7 @@ export function ensureSchema(db: Database) {
   price REAL DEFAULT 0,
   unit TEXT,
   productGroup TEXT,
+  category_id INTEGER,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -58,6 +59,9 @@ export function ensureSchema(db: Database) {
   if (!names.includes('productGroup')) {
     db.exec(`ALTER TABLE articles ADD COLUMN productGroup TEXT;`);
   }
+  if (!names.includes('category_id')) {
+    db.exec(`ALTER TABLE articles ADD COLUMN category_id INTEGER REFERENCES categories(id);`);
+  }
   if (!names.includes('created_at')) {
     db.exec(`ALTER TABLE articles ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP;`);
   }
@@ -70,7 +74,7 @@ export function ensureSchema(db: Database) {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_articles_ean ON articles(ean);`);
 
   db.exec(`
-CREATE TABLE IF NOT EXISTS custom_articles (
+  CREATE TABLE IF NOT EXISTS custom_articles (
   id INTEGER PRIMARY KEY,
   articleNumber TEXT,
   ean TEXT,
@@ -78,6 +82,7 @@ CREATE TABLE IF NOT EXISTS custom_articles (
   price REAL DEFAULT 0,
   unit TEXT,
   productGroup TEXT,
+  category_id INTEGER,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -103,6 +108,9 @@ CREATE TABLE IF NOT EXISTS custom_articles (
   if (!cNames.includes('productGroup')) {
     db.exec(`ALTER TABLE custom_articles ADD COLUMN productGroup TEXT;`);
   }
+  if (!cNames.includes('category_id')) {
+    db.exec(`ALTER TABLE custom_articles ADD COLUMN category_id INTEGER REFERENCES categories(id);`);
+  }
   if (!cNames.includes('created_at')) {
     db.exec(`ALTER TABLE custom_articles ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP;`);
   }
@@ -122,5 +130,13 @@ CREATE TABLE IF NOT EXISTS custom_articles (
   PRIMARY KEY(articleNumber, qty),
   FOREIGN KEY(articleNumber) REFERENCES articles(articleNumber) ON DELETE CASCADE
 );
+  `);
+
+  db.exec(`
+  CREATE TABLE IF NOT EXISTS categories (
+    id INTEGER PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
   `);
 }

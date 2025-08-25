@@ -6,6 +6,7 @@ import { upsertArticles } from '../db';
 export async function importDatanormFile({
   filePath,
   mapping,
+  categoryId,
 }: {
   filePath: string;
   mapping?: {
@@ -16,6 +17,7 @@ export async function importDatanormFile({
     unit?: boolean;
     productGroup?: boolean;
   };
+  categoryId?: number;
 }): Promise<{ parsed: number; inserted: number; updated: number; durationMs: number }> {
   if (!path.isAbsolute(filePath)) throw new Error('Pfad muss absolut sein');
   if (!fs.existsSync(filePath)) throw new Error('Datei nicht gefunden');
@@ -98,6 +100,7 @@ export async function importDatanormFile({
       price: Number(raw.price ?? 0),
       unit: raw.unit ?? null,
       productGroup: raw.productGroup ?? null,
+      category_id: categoryId ?? null,
     } as any;
     if (mapping?.ean === false) item.ean = null;
     if (mapping?.price === false) item.price = 0;

@@ -22,11 +22,11 @@ CREATE TABLE IF NOT EXISTS cart(
 );`);
 
 const stmtInsert = db.prepare(
-  `INSERT INTO articles (articleNumber, ean, name, price, unit, productGroup, updated_at)
-   VALUES (@articleNumber, @ean, @name, @price, @unit, @productGroup, CURRENT_TIMESTAMP)`,
+  `INSERT INTO articles (articleNumber, ean, name, price, unit, productGroup, category_id, updated_at)
+   VALUES (@articleNumber, @ean, @name, @price, @unit, @productGroup, @category_id, CURRENT_TIMESTAMP)`,
 );
 const stmtUpdate = db.prepare(
-  `UPDATE articles SET ean=@ean, name=@name, price=@price, unit=@unit, productGroup=@productGroup, updated_at=CURRENT_TIMESTAMP
+  `UPDATE articles SET ean=@ean, name=@name, price=@price, unit=@unit, productGroup=@productGroup, category_id=@category_id, updated_at=CURRENT_TIMESTAMP
    WHERE articleNumber=@articleNumber`,
 );
 
@@ -42,6 +42,7 @@ export function upsertArticles(batch: any[]) {
         price: Number(raw.price ?? 0),
         unit: raw.unit ?? null,
         productGroup: raw.productGroup ?? null,
+        category_id: raw.category_id ?? null,
       };
       try {
         stmtInsert.run(item);
@@ -70,12 +71,23 @@ export function clearArticles() {
   return res.changes;
 }
 
+export function listCategories() {
+  return db.prepare('SELECT id, name FROM categories ORDER BY name ASC').all();
+}
+
+export function createCategory(name: string) {
+  const stmt = db.prepare('INSERT INTO categories (name) VALUES (?)');
+  const res = stmt.run(name.trim());
+  return { id: Number(res.lastInsertRowid) };
+}
+
 export function searchArticles(opts: {
   text?: string;
   limit?: number;
   offset?: number;
   sortBy?: 'name' | 'articleNumber' | 'price';
   sortDir?: 'ASC' | 'DESC';
+  categoryId?: number;
 }) {
   const text = opts.text?.trim();
   const limit = typeof opts.limit === 'number' ? opts.limit : 50;
@@ -83,16 +95,18 @@ export function searchArticles(opts: {
   const sortBy = ['name', 'articleNumber', 'price'].includes(opts.sortBy || '') ? opts.sortBy! : 'name';
   const sortDir = opts.sortDir === 'DESC' ? 'DESC' : 'ASC';
 
-  const where = text
-    ? 'WHERE (name LIKE @q COLLATE NOCASE OR articleNumber LIKE @q COLLATE NOCASE OR ean LIKE @q COLLATE NOCASE)'
-    : '';
-  const params: any = { q: text ? `%${text}%` : undefined, limit, offset };
+  const whereParts: string[] = [];
+  const params: any = { q: text ? `%${text}%` : undefined, limit, offset, category: opts.categoryId };
+  if (text)
+    whereParts.push('(name LIKE @q COLLATE NOCASE OR articleNumber LIKE @q COLLATE NOCASE OR ean LIKE @q COLLATE NOCASE)');
+  if (opts.categoryId) whereParts.push('category_id = @category');
+  const where = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
 
   const totalStmt = db.prepare(`SELECT COUNT(*) as count FROM articles ${where}`);
   const total = (totalStmt.get(params) as any).count as number;
 
   const itemsStmt = db.prepare(
-    `SELECT articleNumber, ean, name, price, unit, productGroup FROM articles ${where} ORDER BY ${sortBy} ${sortDir} LIMIT @limit OFFSET @offset`,
+    `SELECT articleNumber, ean, name, price, unit, productGroup, category_id FROM articles ${where} ORDER BY ${sortBy} ${sortDir} LIMIT @limit OFFSET @offset`,
   );
   const items = itemsStmt.all(params);
 
@@ -105,6 +119,7 @@ export function searchAllArticles(opts: {
   offset?: number;
   sortBy?: 'name' | 'articleNumber' | 'price';
   sortDir?: 'ASC' | 'DESC';
+  categoryId?: number;
 }) {
   const text = opts.text?.trim();
   const limit = typeof opts.limit === 'number' ? opts.limit : 50;
@@ -112,10 +127,12 @@ export function searchAllArticles(opts: {
   const sortBy = ['name', 'articleNumber', 'price'].includes(opts.sortBy || '') ? opts.sortBy! : 'name';
   const sortDir = opts.sortDir === 'DESC' ? 'DESC' : 'ASC';
 
-  const where = text
-    ? `WHERE (name LIKE @q COLLATE NOCASE OR articleNumber LIKE @q COLLATE NOCASE OR ean LIKE @q COLLATE NOCASE)`
-    : '';
-  const params: any = { q: text ? `%${text}%` : undefined, limit, offset };
+  const whereParts: string[] = [];
+  const params: any = { q: text ? `%${text}%` : undefined, limit, offset, category: opts.categoryId };
+  if (text)
+    whereParts.push('(name LIKE @q COLLATE NOCASE OR articleNumber LIKE @q COLLATE NOCASE OR ean LIKE @q COLLATE NOCASE)');
+  if (opts.categoryId) whereParts.push('category_id = @category');
+  const where = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
 
   const totalStmt = db.prepare(
     `SELECT COUNT(*) as count FROM (
@@ -127,9 +144,9 @@ export function searchAllArticles(opts: {
   const total = (totalStmt.get(params) as any).count as number;
 
   const itemsStmt = db.prepare(
-    `SELECT id, articleNumber, ean, name, price, unit, productGroup, 'import' AS source FROM articles ${where}
+    `SELECT id, articleNumber, ean, name, price, unit, productGroup, category_id, 'import' AS source FROM articles ${where}
      UNION ALL
-     SELECT id, articleNumber, ean, name, price, unit, productGroup, 'custom' AS source FROM custom_articles ${where}
+     SELECT id, articleNumber, ean, name, price, unit, productGroup, category_id, 'custom' AS source FROM custom_articles ${where}
      ORDER BY ${sortBy} ${sortDir} LIMIT @limit OFFSET @offset`,
   );
   const items = itemsStmt.all(params);
@@ -144,10 +161,11 @@ export function createCustomArticle(a: {
   price?: number;
   unit?: string;
   productGroup?: string;
+  categoryId?: number;
 }) {
   const stmt = db.prepare(
-    `INSERT INTO custom_articles (articleNumber, ean, name, price, unit, productGroup, updated_at)
-     VALUES (@articleNumber, @ean, @name, @price, @unit, @productGroup, CURRENT_TIMESTAMP)`,
+    `INSERT INTO custom_articles (articleNumber, ean, name, price, unit, productGroup, category_id, updated_at)
+     VALUES (@articleNumber, @ean, @name, @price, @unit, @productGroup, @categoryId, CURRENT_TIMESTAMP)`,
   );
   const res = stmt.run({
     articleNumber: a.articleNumber ?? null,
@@ -156,6 +174,7 @@ export function createCustomArticle(a: {
     price: a.price ?? 0,
     unit: a.unit ?? null,
     productGroup: a.productGroup ?? null,
+    categoryId: a.categoryId ?? null,
   });
   return { id: Number(res.lastInsertRowid) };
 }
@@ -169,13 +188,15 @@ export function updateCustomArticle(
     price?: number;
     unit?: string;
     productGroup?: string;
+    categoryId?: number;
   },
 ) {
   const fields: string[] = [];
   const params: any = { id };
-  for (const key of ['articleNumber', 'ean', 'name', 'price', 'unit', 'productGroup'] as const) {
+  for (const key of ['articleNumber', 'ean', 'name', 'price', 'unit', 'productGroup', 'categoryId'] as const) {
     if (patch[key] !== undefined) {
-      fields.push(`${key}=@${key}`);
+      const col = key === 'categoryId' ? 'category_id' : key;
+      fields.push(`${col}=@${key}`);
       params[key] = patch[key];
     }
   }
