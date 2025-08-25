@@ -8,5 +8,5 @@ import iconv from 'iconv-lite';
  */
 export function decodeCp850(stream: Readable): Readable {
   const decoder = iconv.decodeStream('cp850');
-  return stream.pipe(decoder);
+  return stream.pipe(decoder) as unknown as Readable;
 }

@@ -18,6 +18,31 @@ export function ensureSchema(db: Database) {
 
   const cols = db.prepare(`PRAGMA table_info(articles)`).all() as any[];
   const names = cols.map((c) => c.name);
+  const artCol = cols.find((c) => c.name === 'articleNumber');
+  if (artCol && String(artCol.type).toUpperCase() !== 'TEXT') {
+    db.exec(`ALTER TABLE articles RENAME TO _articles_old;`);
+    db.exec(`
+      CREATE TABLE articles (
+        id INTEGER PRIMARY KEY,
+        articleNumber TEXT UNIQUE,
+        ean TEXT,
+        name TEXT NOT NULL DEFAULT '',
+        price REAL DEFAULT 0,
+        unit TEXT,
+        productGroup TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    db.exec(`
+      INSERT INTO articles (id, articleNumber, ean, name, price, unit, productGroup, created_at, updated_at)
+      SELECT id, CAST(articleNumber AS TEXT), ean, name, price, unit, productGroup, created_at, updated_at FROM _articles_old;
+    `);
+    db.exec(`DROP TABLE _articles_old;`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_articles_articlenumber ON articles(articleNumber);`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_articles_name ON articles(name);`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_articles_ean ON articles(ean);`);
+  }
   if (!names.includes('ean')) {
     db.exec(`ALTER TABLE articles ADD COLUMN ean TEXT;`);
   }

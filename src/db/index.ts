@@ -3,9 +3,9 @@ import fs from 'fs';
 import path from 'path';
 import { ArticleRecord } from '../datanorm/records';
 
-let db: Database.Database | null = null;
+let db: Database | null = null;
 
-export function getDb(dbPath = path.join(process.cwd(), 'datanorm.sqlite')): Database.Database {
+export function getDb(dbPath = path.join(process.cwd(), 'datanorm.sqlite')): Database {
   if (!db) {
     db = new Database(dbPath);
     const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');

@@ -9,8 +9,11 @@ export function validateArticle(rec: ArticleRecord, version: 'v4' | 'v5'): Valid
   const errors: ValidationError[] = [];
   const maxEAN = version === 'v4' ? 13 : 18;
   if (!rec.artnr) errors.push({ field: 'artnr', message: 'required' });
-  if (rec.artnr && rec.artnr.length > 15)
-    errors.push({ field: 'artnr', message: `max 15` });
+  if (rec.artnr) {
+    if (rec.artnr.trim().length > 15) errors.push({ field: 'artnr', message: `max 15` });
+    if (!/^[A-Za-z0-9_-]+$/.test(rec.artnr.trim()))
+      errors.push({ field: 'artnr', message: 'invalid' });
+  }
   if (!rec.kurztext1) errors.push({ field: 'kurztext1', message: 'required' });
   if (rec.kurztext1 && rec.kurztext1.length > 40)
     errors.push({ field: 'kurztext1', message: 'max 40' });
