@@ -9,6 +9,8 @@ import {
   updateCustomArticle,
   deleteCustomArticle,
   searchAllArticles,
+  listCategories,
+  createCategory,
 } from '../db';
 import { registerCartHandlers } from './cart';
 import { registerLabelsHandlers } from './labels';
@@ -19,8 +21,8 @@ export function registerIpcHandlers() {
   registerLabelsHandlers();
   registerShellHandlers();
 
-  ipcMain.handle('datanorm:import', async (_e, { filePath, mapping }) => {
-    const res = await importDatanormFile({ filePath, mapping });
+  ipcMain.handle('datanorm:import', async (_e, { filePath, mapping, categoryId }) => {
+    const res = await importDatanormFile({ filePath, mapping, categoryId });
     console.log('Import result', res);
     return res;
   });
@@ -31,6 +33,9 @@ export function registerIpcHandlers() {
     ipcMain.handle('custom:create', (_e, payload) => createCustomArticle(payload));
     ipcMain.handle('custom:update', (_e, { id, patch }) => updateCustomArticle(id, patch));
     ipcMain.handle('custom:delete', (_e, id) => deleteCustomArticle(id));
+
+  ipcMain.handle('categories:list', () => listCategories());
+  ipcMain.handle('categories:create', (_e, name) => createCategory(name));
 
   ipcMain.handle('db:info', () => getDbInfo());
 

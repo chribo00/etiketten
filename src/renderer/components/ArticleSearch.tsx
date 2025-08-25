@@ -25,6 +25,9 @@ const ArticleSearch: React.FC = () => {
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [generatedEans, setGeneratedEans] = useState<Set<string>>(new Set());
     const [cart, setCart] = useState<any[]>([]);
+    const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
+    const [searchCategory, setSearchCategory] = useState<number | undefined>();
+    const [newCategoryId, setNewCategoryId] = useState<number | undefined>();
 
     const templates: Record<string, Partial<LabelConfig>> = {
       'a4-3x8': {},
@@ -62,32 +65,38 @@ const ArticleSearch: React.FC = () => {
     if (info) setDbInfoText(`DB enthält ${info.rowCount} Artikel`);
   };
 
+  const loadCategories = async () => {
+    const list = await window.bridge?.categories?.list();
+    setCategories(list || []);
+  };
+
   const refreshList = async (
     p = page,
     sb: 'name' | 'articleNumber' | 'price' = sortBy,
     sd: 'ASC' | 'DESC' = sortDir,
   ) => {
-      if (!window.bridge?.searchAll) return;
-      setLoading(true);
-      setError(null);
-      const offset = (p - 1) * pageSize;
-      try {
-        const res = await window.bridge.searchAll({
-          text: query.trim() || undefined,
-          limit: pageSize,
-          offset,
-          sortBy: sb,
-          sortDir: sd,
-        });
+    if (!window.bridge?.searchAll) return;
+    setLoading(true);
+    setError(null);
+    const offset = (p - 1) * pageSize;
+    try {
+      const res = await window.bridge.searchAll({
+        text: query.trim() || undefined,
+        limit: pageSize,
+        offset,
+        sortBy: sb,
+        sortDir: sd,
+        categoryId: searchCategory,
+      });
       if (res?.message) {
         setError(res.message);
         setItems([]);
         setTotal(0);
       } else {
-          setItems(res.items || []);
-          setTotal(res.total || 0);
-        }
-      } catch (err: any) {
+        setItems(res.items || []);
+        setTotal(res.total || 0);
+      }
+    } catch (err: any) {
       console.error('searchArticles failed', err);
       setError(err?.message || 'Unbekannter Fehler');
       setItems([]);
@@ -99,16 +108,22 @@ const ArticleSearch: React.FC = () => {
 
   useEffect(() => {
     loadInfo();
-    refreshList();
+    loadCategories();
     const handler = () => {
       loadInfo();
-      refreshList();
+      loadCategories();
     };
     window.addEventListener('articles:refresh', handler);
     return () => window.removeEventListener('articles:refresh', handler);
   }, []);
 
   const onSearch = async () => {
+    if (!searchCategory && query.trim().length < 2) {
+      setItems([]);
+      setTotal(0);
+      setLoaded(true);
+      return;
+    }
     setPage(1);
     await refreshList(1);
   };
@@ -221,6 +236,7 @@ const ArticleSearch: React.FC = () => {
         z.number().nonnegative().optional(),
       ),
       unit: z.string().optional(),
+      categoryId: z.number().optional(),
     });
 
     const handleCreate = async () => {
@@ -230,6 +246,7 @@ const ArticleSearch: React.FC = () => {
         ean: autoEan && !ean ? fromArticleToEan13(artnr) || '' : ean,
         price,
         unit,
+        categoryId: newCategoryId,
       };
       const parsed = createSchema.safeParse(data);
       if (!parsed.success) {
@@ -247,6 +264,7 @@ const ArticleSearch: React.FC = () => {
       setEan('');
       setPrice('');
       setUnit('');
+      setNewCategoryId(undefined);
       setAddToCart(true);
       setAutoEan(true);
       setEanDirty(false);
@@ -287,14 +305,30 @@ const ArticleSearch: React.FC = () => {
             placeholder="Suche"
             disabled={!apiReady || loading}
           />
+          <select
+            value={searchCategory?.toString() || ''}
+            onChange={async (e) => {
+              const val = e.target.value;
+              setSearchCategory(val ? Number(val) : undefined);
+            }}
+          >
+            <option value="">Alle Kategorien</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
           <Button onClick={onSearch} disabled={!apiReady || loading}>
             Suchen
           </Button>
           <Button
-            onClick={async () => {
-              await window.bridge?.dbClear?.();
-              await loadInfo();
-              await refreshList(1);
+            onClick={() => {
+              setQuery('');
+              setSearchCategory(undefined);
+              setItems([]);
+              setTotal(0);
+              setLoaded(false);
             }}
             disabled={!apiReady || loading}
           >
@@ -470,6 +504,29 @@ const ArticleSearch: React.FC = () => {
               onChange={(_, d) => setUnit(d.value)}
               placeholder="Einheit (optional)"
             />
+            <select
+              value={newCategoryId?.toString() || ''}
+              onChange={async (e) => {
+                const val = e.target.value;
+                if (val === '__new') {
+                  const name = prompt('Neue Kategorie');
+                  if (name) {
+                    await window.bridge?.categories?.create(name);
+                    await loadCategories();
+                  }
+                  return;
+                }
+                setNewCategoryId(val ? Number(val) : undefined);
+              }}
+            >
+              <option value="">(keine Kategorie)</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+              <option value="__new">Neue Kategorie…</option>
+            </select>
             <Checkbox
               checked={addToCart}
               onChange={(_, d) => setAddToCart(d.checked)}
