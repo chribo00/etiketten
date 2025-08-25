@@ -20,10 +20,20 @@ function expanded(items: Array<{ articleId: string; qty: number; options: any }>
 
 async function renderBarcode(code: string): Promise<Buffer> {
   const bcid = code.length === 8 ? 'ean8' : code.length === 13 ? 'ean13' : 'code128';
+  const opts = {
+    bcid,
+    text: code,
+    scale: 2,
+    height: 20,
+    includetext: true,
+    textxalign: 'center' as const,
+    textfont: 'Helvetica',
+    textsize: 14,
+  };
   try {
-    return await bwipjs.toBuffer({ bcid, text: code, scale: 2, height: 20, includetext: false });
+    return await bwipjs.toBuffer(opts);
   } catch {
-    return await bwipjs.toBuffer({ bcid: 'code128', text: code, scale: 2, height: 20, includetext: false });
+    return await bwipjs.toBuffer({ ...opts, bcid: 'code128' });
   }
 }
 
@@ -39,22 +49,27 @@ export async function generateLabelsPdf(items: Array<{ articleId: string; qty: n
     if (!art) continue;
     doc.addPage({ size: [PAGE.w, PAGE.h], margin: PAGE.margin });
 
-    if (it.options.showShortText && art.shortText) {
-      doc.fontSize(10).text(art.shortText, mm(2), mm(2), { width: mm(45) });
-    }
+    let cursorY = mm(2);
     if (it.options.showArticleNumber && art.articleNumber) {
-      doc.fontSize(9).text(art.articleNumber, mm(2), mm(20));
+      doc.fontSize(9).text(art.articleNumber, mm(2), cursorY);
+      cursorY = doc.y + mm(2);
+    }
+    if (it.options.showShortText && art.shortText) {
+      doc.fontSize(10).text(art.shortText, mm(2), cursorY, { width: mm(45) });
+      cursorY = doc.y + mm(2);
     }
     if (it.options.showListPrice && art.listPrice) {
-      doc.fontSize(16).font('Helvetica-Bold').text(`${art.listPrice.toFixed(2)} €`, mm(55), mm(4));
+      doc.fontSize(16).font('Helvetica-Bold').text(`${art.listPrice.toFixed(2)} €`, mm(2), cursorY);
       doc.font('Helvetica');
+      cursorY = doc.y + mm(2);
     }
     if (it.options.showImage && art.imagePath && fs.existsSync(art.imagePath)) {
-      doc.image(art.imagePath, mm(2), mm(28), { width: mm(38), height: mm(18), fit: [mm(38), mm(18)] });
+      doc.image(art.imagePath, mm(2), cursorY, { width: mm(38), height: mm(18), fit: [mm(38), mm(18)] });
+      cursorY += mm(18) + mm(2);
     }
     if (it.options.showEan && art.ean) {
       const png = await renderBarcode(art.ean);
-      doc.image(png, mm(48), mm(18), { width: mm(48), height: mm(22) });
+      doc.image(png, mm(2), PAGE.h - mm(22) - mm(2), { width: mm(48), height: mm(22) });
     }
   }
 

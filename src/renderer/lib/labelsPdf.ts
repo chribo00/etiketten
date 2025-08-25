@@ -31,6 +31,16 @@ export async function generateLabelsPdf(
       const x = conf.marginX + col * (conf.labelW + conf.gutterX);
       const y = conf.marginY + row * (conf.labelH + conf.gutterY);
 
+      let cursorY = y + 2;
+
+      if (item.articleNumber) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.text(item.articleNumber, x + 3, cursorY, { baseline: 'top' });
+        const artHeight = doc.getTextDimensions(item.articleNumber).h;
+        cursorY += artHeight + 2;
+      }
+
       let fontStyle: 'normal' | 'italic' = 'normal';
       let fontSize = 11;
       if (item.name && item.name.toLowerCase().includes('nicht mehr verwenden')) {
@@ -45,12 +55,12 @@ export async function generateLabelsPdf(
         const second = lines[1];
         lines = [lines[0], second.substring(0, second.length - 3) + '...'];
       }
-      doc.text(lines as any, x + 3, y + 2, {
+      doc.text(lines as any, x + 3, cursorY, {
         maxWidth,
         baseline: 'top',
       });
       const nameHeight = doc.getTextDimensions(lines).h;
-      let cursorY = y + 2 + nameHeight + 2;
+      cursorY += nameHeight + 2;
 
       if (item.price != null) {
         doc.setFont('helvetica', 'bold');
@@ -86,11 +96,7 @@ export async function generateLabelsPdf(
         if (barcodeCount % 8 === 0) await Promise.resolve();
       }
 
-      if (item.articleNumber) {
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
-        doc.text(item.articleNumber, x + 3, y + conf.labelH - 1);
-      }
+
 
       col++;
       if (col >= conf.cols) {

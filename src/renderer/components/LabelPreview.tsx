@@ -16,11 +16,21 @@ const LabelPreview: React.FC<Props> = ({ opts }) => {
     ctx.strokeStyle = '#000';
     ctx.strokeRect(0, 0, 300, 150);
     ctx.fillStyle = '#000';
-    if (opts.showShortText) ctx.fillText('Beispieltext', 10, 20);
-    if (opts.showArticleNumber) ctx.fillText('Art.-Nr: 12345', 10, 140);
-    if (opts.showListPrice) ctx.fillText('9,99 €', 200, 30);
+    let y = 20;
+    if (opts.showArticleNumber) {
+      ctx.fillText('Art.-Nr: 12345', 10, y);
+      y += 20;
+    }
+    if (opts.showShortText) {
+      ctx.fillText('Beispieltext', 10, y);
+      y += 20;
+    }
+    if (opts.showListPrice) {
+      ctx.fillText('9,99 €', 10, y);
+      y += 20;
+    }
     if (opts.showEan) {
-      ctx.fillRect(200, 40, 80, 40);
+      ctx.fillRect(10, 90, 120, 40);
     }
     if (opts.showImage) {
       ctx.fillStyle = '#ccc';
