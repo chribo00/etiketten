@@ -8,10 +8,10 @@ interface Props {
 const LabelPreview: React.FC<Props> = ({ opts }) => {
   return (
     <div className="label">
-      {opts.showArticleNumber && <div className="label__sku">Art.-Nr: 12345</div>}
+      {opts.showArticleNumber && <div className="label__sku">12345</div>}
       {opts.showShortText && <div className="label__title">Beispieltext</div>}
-      {opts.showListPrice && <div className="label__price">9,99 €</div>}
       {opts.showImage && <div className="label__image" />}
+      {opts.showListPrice && <div className="label__price">9,99 €</div>}
       {opts.showEan && (
         <div className="label__barcode">
           <svg width="120" height="40">
