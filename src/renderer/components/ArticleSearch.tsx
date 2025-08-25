@@ -141,6 +141,19 @@ const ArticleSearch: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    if (!apiReady) return;
+    if (query.trim().length >= 2 || searchCategory !== undefined) {
+      setPage(1);
+      refreshList(1);
+    } else {
+      setItems([]);
+      setTotal(0);
+      setLoaded(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchCategory]);
+
   const prev = async () => {
     const p = page - 1;
     setPage(p);
@@ -309,7 +322,7 @@ const ArticleSearch: React.FC = () => {
             value={query}
             onChange={(_, d) => setQuery(d.value)}
             onKeyDown={onKeyDown}
-            placeholder="Suche"
+            placeholder="Suche wie bei Google: Wörter = UND, „…“ = Phrase, OR, -wort, * als Präfix"
             disabled={!apiReady || loading}
           />
           <select

@@ -148,4 +148,61 @@ export function ensureSchema(db: Database) {
     db.exec(`ALTER TABLE categories ADD COLUMN updated_at DATETIME;`);
   }
   db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_name ON categories(LOWER(name));`);
+
+  // FTS table for fast article search
+  db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS articles_fts USING fts5(
+    articleNumber, name, kurztext2, langtext, matchcode, ean, supplierName, category_name,
+    tokenize='unicode61 remove_diacritics 2 tokenchars "-_./"'
+  );`);
+
+  // keep FTS table in sync with articles
+  db.exec(`CREATE TRIGGER IF NOT EXISTS articles_ai AFTER INSERT ON articles BEGIN
+    INSERT INTO articles_fts(rowid, articleNumber, name, ean, category_name)
+      VALUES (new.id, new.articleNumber, new.name, new.ean,
+        (SELECT name FROM categories WHERE id=new.category_id));
+  END;`);
+  db.exec(`CREATE TRIGGER IF NOT EXISTS articles_au AFTER UPDATE ON articles BEGIN
+    INSERT INTO articles_fts(articles_fts, rowid) VALUES('delete', old.id);
+    INSERT INTO articles_fts(rowid, articleNumber, name, ean, category_name)
+      VALUES (new.id, new.articleNumber, new.name, new.ean,
+        (SELECT name FROM categories WHERE id=new.category_id));
+  END;`);
+  db.exec(`CREATE TRIGGER IF NOT EXISTS articles_ad AFTER DELETE ON articles BEGIN
+    INSERT INTO articles_fts(articles_fts, rowid) VALUES('delete', old.id);
+  END;`);
+
+  // keep FTS table in sync with custom articles using negative rowid
+  db.exec(`CREATE TRIGGER IF NOT EXISTS custom_articles_ai AFTER INSERT ON custom_articles BEGIN
+    INSERT INTO articles_fts(rowid, articleNumber, name, ean, category_name)
+      VALUES (-new.id, new.articleNumber, new.name, new.ean,
+        (SELECT name FROM categories WHERE id=new.category_id));
+  END;`);
+  db.exec(`CREATE TRIGGER IF NOT EXISTS custom_articles_au AFTER UPDATE ON custom_articles BEGIN
+    INSERT INTO articles_fts(articles_fts, rowid) VALUES('delete', -old.id);
+    INSERT INTO articles_fts(rowid, articleNumber, name, ean, category_name)
+      VALUES (-new.id, new.articleNumber, new.name, new.ean,
+        (SELECT name FROM categories WHERE id=new.category_id));
+  END;`);
+  db.exec(`CREATE TRIGGER IF NOT EXISTS custom_articles_ad AFTER DELETE ON custom_articles BEGIN
+    INSERT INTO articles_fts(articles_fts, rowid) VALUES('delete', -old.id);
+  END;`);
+
+  // update category name in FTS when categories change
+  db.exec(`CREATE TRIGGER IF NOT EXISTS categories_au AFTER UPDATE ON categories BEGIN
+    UPDATE articles_fts SET category_name=new.name
+      WHERE rowid IN (SELECT id FROM articles WHERE category_id=new.id);
+    UPDATE articles_fts SET category_name=new.name
+      WHERE rowid IN (SELECT -id FROM custom_articles WHERE category_id=new.id);
+  END;`);
+
+  // populate FTS table if empty
+  const ftsCount = (db.prepare('SELECT count(*) as c FROM articles_fts').get() as any).c as number;
+  if (ftsCount === 0) {
+    db.exec(`INSERT INTO articles_fts(rowid, articleNumber, name, ean, category_name)
+      SELECT a.id, a.articleNumber, a.name, a.ean, c.name
+      FROM articles a LEFT JOIN categories c ON c.id=a.category_id;`);
+    db.exec(`INSERT INTO articles_fts(rowid, articleNumber, name, ean, category_name)
+      SELECT -c.id, c.articleNumber, c.name, c.ean, cat.name
+      FROM custom_articles c LEFT JOIN categories cat ON cat.id=c.category_id;`);
+  }
 }
