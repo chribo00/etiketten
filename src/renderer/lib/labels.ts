@@ -50,12 +50,13 @@ export async function renderEanPng(
     width: Math.max(1, Math.floor(pxW / 180)),
     height: Math.max(30, Math.floor(pxH * 0.65)),
     displayValue: true,
-    text: code,
     font: 'Helvetica',
-    fontSize: 16,
-    textMargin: 5,
+    fontSize: 14,
+    textMargin: 4,
     textAlign: 'center',
     margin: 0,
+    marginTop: 0,
+    marginBottom: 0,
   };
 
   try {
