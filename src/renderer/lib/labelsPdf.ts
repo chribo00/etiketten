@@ -68,7 +68,7 @@ export async function generateLabelsPdf(
         const priceStr = currency.format(item.price);
         doc.text(priceStr, x + 3, cursorY, { baseline: 'top' });
         const priceHeight = doc.getTextDimensions(priceStr).h;
-        cursorY += priceHeight + 3;
+        cursorY += priceHeight + 4;
       }
 
       let code: string | undefined = undefined;
