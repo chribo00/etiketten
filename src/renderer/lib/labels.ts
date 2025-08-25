@@ -31,8 +31,8 @@ export const fromArticleToEan13 = (artnr: string): string | null => {
   return `${d12}${check}`;
 };
 
-export async function renderEanPng(
-  code: string,
+export async function renderBarcodePng(
+  artnr: string,
   widthMm: number,
   heightMm: number,
   dpi = 300
@@ -43,28 +43,36 @@ export async function renderEanPng(
   canvas.width = pxW;
   canvas.height = pxH;
 
+  const digits = onlyDigits(artnr);
+  let format: 'EAN13' | 'CODE128' = 'CODE128';
+  let code = artnr;
+  let text = artnr;
+
+  if (/^\d{13}$/.test(digits)) {
+    const d12 = digits.slice(0, 12);
+    const check = eanChecksum12(d12);
+    code = `${d12}${check}`;
+    text = code;
+    format = 'EAN13';
+  }
+
   const opts: any = {
-    format: 'EAN13',
+    format,
     lineColor: '#000',
     background: '#fff',
     width: Math.max(1, Math.floor(pxW / 180)),
     height: Math.max(30, Math.floor(pxH * 0.65)),
     displayValue: true,
+    text,
     font: 'Helvetica',
     fontSize: 14,
     textMargin: 4,
     textAlign: 'center',
-    margin: 0,
     marginTop: 0,
     marginBottom: 0,
   };
 
-  try {
-    JsBarcode(canvas, code, opts);
-  } catch {
-    opts.format = 'CODE128';
-    JsBarcode(canvas, code, opts);
-  }
+  JsBarcode(canvas, code, opts);
   return canvas.toDataURL('image/png');
 }
 
