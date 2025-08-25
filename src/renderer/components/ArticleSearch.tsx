@@ -301,7 +301,8 @@ const ArticleSearch: React.FC = () => {
     const totalSelected = selectedIds.size;
 
   return (
-    <div>
+    <>
+      <div>
         <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
           {dbInfoText && <div>{dbInfoText}</div>}
           <Input
@@ -621,8 +622,13 @@ const ArticleSearch: React.FC = () => {
           </div>
         </div>
       </div>
-      <CategoryManager open={catManagerOpen} onClose={() => setCatManagerOpen(false)} />
-    </div>
+      {catManagerOpen && (
+        <CategoryManager
+          open={catManagerOpen}
+          onClose={() => setCatManagerOpen(false)}
+        />
+      )}
+    </>
   );
 };
 
