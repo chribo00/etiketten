@@ -76,6 +76,10 @@ export interface SetRecord {
   menge: string;
 }
 
+export interface EndRecord {
+  type: 'E';
+}
+
 export type AnyRecord =
   | HeaderRecord
   | WarengruppeRecord
@@ -86,4 +90,5 @@ export type AnyRecord =
   | PriceRecord
   | PriceTierRecord
   | MediaRecord
-  | SetRecord;
+  | SetRecord
+  | EndRecord;

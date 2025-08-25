@@ -198,7 +198,17 @@ const ArticleSearch: React.FC = () => {
     };
 
     const createSchema = z.object({
-      articleNumber: z.string().optional(),
+      articleNumber: z
+        .string()
+        .trim()
+        .refine(
+          (v) => /^[A-Za-z0-9_-]{1,15}$/.test(v),
+          {
+            message:
+              'Artikelnummer darf Buchstaben und Ziffern enthalten (A–Z, 0–9, _ , -), max. 15 Zeichen.',
+          },
+        )
+        .optional(),
       name: z.string().min(1),
       ean: z
         .string()
@@ -386,6 +396,7 @@ const ArticleSearch: React.FC = () => {
             <h3>Artikel manuell anlegen</h3>
             {formError && <div style={{ color: 'red' }}>{formError}</div>}
             <Input
+              type="text"
               value={artnr}
               onChange={(_, d) => setArtnr(d.value)}
               placeholder="Artikelnummer (optional)"

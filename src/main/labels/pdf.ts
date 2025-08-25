@@ -18,11 +18,31 @@ function expanded(items: Array<{ articleId: string; qty: number; options: any }>
   return out;
 }
 
-async function renderBarcode(code: string): Promise<Buffer> {
-  const bcid = code.length === 8 ? 'ean8' : code.length === 13 ? 'ean13' : 'code128';
+const eanChecksum12 = (digits12: string): number => {
+  const digits = digits12.split('').map((d) => parseInt(d, 10));
+  let sum = 0;
+  for (let i = 0; i < 12; i++) {
+    const weight = i % 2 === 0 ? 1 : 3;
+    sum += digits[i] * weight;
+  }
+  const mod = sum % 10;
+  return mod === 0 ? 0 : 10 - mod;
+};
+
+async function renderBarcode(artnr: string): Promise<Buffer> {
+  const trimmed = artnr.trim();
+  let bcid: 'ean13' | 'code128' = 'code128';
+  let code = trimmed;
+  if (/^\d{13}$/.test(trimmed)) {
+    const d12 = trimmed.slice(0, 12);
+    const check = eanChecksum12(d12);
+    code = `${d12}${check}`;
+    bcid = 'ean13';
+  }
   const opts = {
     bcid,
     text: code,
+    alttext: trimmed,
     scale: 2,
     height: 20,
     includetext: true,
@@ -74,8 +94,8 @@ export async function generateLabelsPdf(items: Array<{ articleId: string; qty: n
       });
       cursorY += mm(18) + mm(3);
     }
-    if (it.options.showEan && art.ean) {
-      const png = await renderBarcode(art.ean);
+    if (it.options.showEan && art.articleNumber) {
+      const png = await renderBarcode(art.articleNumber);
       doc.image(png, mm(2), cursorY, { width: mm(48), height: mm(22) });
       cursorY += mm(22);
     }

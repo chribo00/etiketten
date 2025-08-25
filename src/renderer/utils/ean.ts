@@ -12,9 +12,10 @@ export const eanChecksum12 = (digits12: string) => {
 };
 
 export const toEan13FromArticleNumber = (artnr: string): string | null => {
-  const digits = (artnr || '').replace(/\D/g, '');
-  if (!digits) return null;
-  const d12 = digits.length >= 12 ? digits.slice(-12) : digits.padStart(12, '0');
+  const trimmed = (artnr || '').trim();
+  if (!/^\d+$/.test(trimmed)) return null;
+  const d12 =
+    trimmed.length >= 12 ? trimmed.slice(-12) : trimmed.padStart(12, '0');
   const check = eanChecksum12(d12);
   return `${d12}${check}`;
 };

@@ -24,9 +24,10 @@ export const isValidEan13 = (ean: string): boolean => {
 };
 
 export const fromArticleToEan13 = (artnr: string): string | null => {
-  const digits = onlyDigits(artnr);
-  if (!digits) return null;
-  const d12 = digits.length >= 12 ? digits.slice(-12) : digits.padStart(12, '0');
+  const trimmed = artnr.trim();
+  if (!/^\d+$/.test(trimmed)) return null;
+  const d12 =
+    trimmed.length >= 12 ? trimmed.slice(-12) : trimmed.padStart(12, '0');
   const check = eanChecksum12(d12);
   return `${d12}${check}`;
 };
@@ -43,16 +44,14 @@ export async function renderBarcodePng(
   canvas.width = pxW;
   canvas.height = pxH;
 
-  const digits = onlyDigits(artnr);
+  const trimmed = artnr.trim();
   let format: 'EAN13' | 'CODE128' = 'CODE128';
-  let code = artnr;
-  let text = artnr;
+  let code = trimmed;
 
-  if (/^\d{13}$/.test(digits)) {
-    const d12 = digits.slice(0, 12);
+  if (/^\d{13}$/.test(trimmed)) {
+    const d12 = trimmed.slice(0, 12);
     const check = eanChecksum12(d12);
     code = `${d12}${check}`;
-    text = code;
     format = 'EAN13';
   }
 
@@ -63,11 +62,12 @@ export async function renderBarcodePng(
     width: Math.max(1, Math.floor(pxW / 180)),
     height: Math.max(30, Math.floor(pxH * 0.65)),
     displayValue: true,
-    text,
+    text: trimmed,
     font: 'Helvetica',
     fontSize: 14,
     textMargin: 4,
     textAlign: 'center',
+    margin: 10,
     marginTop: 0,
     marginBottom: 0,
   };
