@@ -12,7 +12,7 @@ export function ensureSchema(db: Database) {
   price REAL DEFAULT 0,
   unit TEXT,
   productGroup TEXT,
-  category_id INTEGER,
+  category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -32,6 +32,7 @@ export function ensureSchema(db: Database) {
         price REAL DEFAULT 0,
         unit TEXT,
         productGroup TEXT,
+        category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
@@ -61,7 +62,9 @@ export function ensureSchema(db: Database) {
     db.exec(`ALTER TABLE articles ADD COLUMN productGroup TEXT;`);
   }
   if (!names.includes('category_id')) {
-    db.exec(`ALTER TABLE articles ADD COLUMN category_id INTEGER REFERENCES categories(id);`);
+    db.exec(
+      `ALTER TABLE articles ADD COLUMN category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL;`,
+    );
   }
   if (!names.includes('created_at')) {
     db.exec(`ALTER TABLE articles ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP;`);
@@ -73,6 +76,7 @@ export function ensureSchema(db: Database) {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_articles_articlenumber ON articles(articleNumber);`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_articles_name ON articles(name);`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_articles_ean ON articles(ean);`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_articles_category_id ON articles(category_id);`);
 
   db.exec(`
   CREATE TABLE IF NOT EXISTS custom_articles (
@@ -83,7 +87,7 @@ export function ensureSchema(db: Database) {
   price REAL DEFAULT 0,
   unit TEXT,
   productGroup TEXT,
-  category_id INTEGER,
+  category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -110,7 +114,9 @@ export function ensureSchema(db: Database) {
     db.exec(`ALTER TABLE custom_articles ADD COLUMN productGroup TEXT;`);
   }
   if (!cNames.includes('category_id')) {
-    db.exec(`ALTER TABLE custom_articles ADD COLUMN category_id INTEGER REFERENCES categories(id);`);
+    db.exec(
+      `ALTER TABLE custom_articles ADD COLUMN category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL;`,
+    );
   }
   if (!cNames.includes('created_at')) {
     db.exec(`ALTER TABLE custom_articles ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP;`);
@@ -122,6 +128,7 @@ export function ensureSchema(db: Database) {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_custom_name ON custom_articles(name);`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_custom_artnr ON custom_articles(articleNumber);`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_custom_ean ON custom_articles(ean);`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_custom_articles_category_id ON custom_articles(category_id);`);
 
   db.exec(`
   CREATE TABLE IF NOT EXISTS price_tiers (

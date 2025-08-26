@@ -84,6 +84,15 @@ function validateCategoryName(name: string) {
   return true;
 }
 
+function tableHasColumn(table: string, column: string): boolean {
+  try {
+    const cols = db.prepare(`PRAGMA table_info(${table})`).all() as any[];
+    return cols.some((c) => c.name === column);
+  } catch {
+    return false;
+  }
+}
+
 export function listCategories() {
   return db.prepare('SELECT id, name FROM categories ORDER BY name COLLATE NOCASE ASC').all();
 }
@@ -127,10 +136,14 @@ export function deleteCategory(
   const cat = db.prepare('SELECT id FROM categories WHERE id=?').get(id);
   if (!cat) return { error: 'NOT_FOUND' };
 
-  const countArticles = (db.prepare('SELECT COUNT(*) as c FROM articles WHERE category_id=?').get(id) as any).c as number;
-  const countCustom = (
-    db.prepare('SELECT COUNT(*) as c FROM custom_articles WHERE category_id=?').get(id) as any
-  ).c as number;
+  const hasArticlesTable = tableHasColumn('articles', 'category_id');
+  const hasCustomTable = tableHasColumn('custom_articles', 'category_id');
+  const countArticles = hasArticlesTable
+    ? (db.prepare('SELECT COUNT(*) as c FROM articles WHERE category_id=?').get(id) as any).c
+    : 0;
+  const countCustom = hasCustomTable
+    ? (db.prepare('SELECT COUNT(*) as c FROM custom_articles WHERE category_id=?').get(id) as any).c
+    : 0;
   const total = countArticles + countCustom;
 
   if (mode === 'reassign') {
@@ -140,8 +153,12 @@ export function deleteCategory(
       if (!target) return { error: 'NOT_FOUND' };
     }
     const tx = db.transaction(() => {
-      db.prepare('UPDATE articles SET category_id=? WHERE category_id=?').run(reassignToId ?? null, id);
-      db.prepare('UPDATE custom_articles SET category_id=? WHERE category_id=?').run(reassignToId ?? null, id);
+      if (hasArticlesTable) {
+        db.prepare('UPDATE articles SET category_id=? WHERE category_id=?').run(reassignToId ?? null, id);
+      }
+      if (hasCustomTable) {
+        db.prepare('UPDATE custom_articles SET category_id=? WHERE category_id=?').run(reassignToId ?? null, id);
+      }
       db.prepare('DELETE FROM categories WHERE id=?').run(id);
     });
     tx();
@@ -149,8 +166,12 @@ export function deleteCategory(
   }
   if (mode === 'deleteArticles') {
     const tx = db.transaction(() => {
-      db.prepare('DELETE FROM articles WHERE category_id=?').run(id);
-      db.prepare('DELETE FROM custom_articles WHERE category_id=?').run(id);
+      if (hasArticlesTable) {
+        db.prepare('DELETE FROM articles WHERE category_id=?').run(id);
+      }
+      if (hasCustomTable) {
+        db.prepare('DELETE FROM custom_articles WHERE category_id=?').run(id);
+      }
       db.prepare('DELETE FROM categories WHERE id=?').run(id);
     });
     tx();

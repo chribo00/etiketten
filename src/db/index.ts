@@ -14,6 +14,16 @@ export function getDb(dbPath = path.join(process.cwd(), 'datanorm.sqlite')): Dat
   return db;
 }
 
+export function closeDb() {
+  if (db) {
+    try {
+      db.close();
+    } finally {
+      db = null;
+    }
+  }
+}
+
 export function withTransaction<T>(fn: () => T): T {
   const database = getDb();
   const tx = database.transaction(fn);

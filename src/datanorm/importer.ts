@@ -19,6 +19,7 @@ import {
 import { validateArticle, validatePrice } from './validator';
 import {
   getDb,
+  closeDb,
   upsertArticle,
   upsertWarengruppe,
   upsertRabattgruppe,
@@ -175,7 +176,11 @@ async function processFile(
 
 export async function runImport(opts: DatanormImportOptions): Promise<ImportResult> {
   const files = await resolveInputFiles(opts.input);
-  const counts = {
+  const dbPath = path.join(opts.input, 'datanorm.sqlite');
+  closeDb();
+  const db = getDb(dbPath);
+  try {
+    const counts = {
     articles: 0,
     texts: 0,
     warengruppen: 0,
@@ -186,10 +191,9 @@ export async function runImport(opts: DatanormImportOptions): Promise<ImportResu
     sets: 0,
     errors: 0,
   };
-  const errors: any[] = [];
-  let version: 'v4' | 'v5' | null = null;
-  const db = getDb();
-  for (const f of files) {
+    const errors: any[] = [];
+    let version: 'v4' | 'v5' | null = null;
+    for (const f of files) {
     const firstLine = fs.readFileSync(f.path, { encoding: 'utf8' }).split(/\r?\n/)[0];
     const v = opts.version && opts.version !== 'auto' ? opts.version : detectVersion(firstLine);
     if (!version) version = v;
@@ -203,15 +207,19 @@ export async function runImport(opts: DatanormImportOptions): Promise<ImportResu
       db.exec('COMMIT');
     }
   }
-  counts.errors = errors.length;
-  const reportDir = path.join(process.cwd(), '.datanorm');
-  fs.mkdirSync(reportDir, { recursive: true });
-  const reportPath = path.join(reportDir, `import-report-${Date.now()}.json`);
-  fs.writeFileSync(reportPath, JSON.stringify({ errors }, null, 2), 'utf8');
-  return {
-    version: version || 'v5',
-    filesProcessed: files.map((f) => f.name),
-    counts,
-    reportPath,
-  };
+    }
+    counts.errors = errors.length;
+    const reportDir = path.join(process.cwd(), '.datanorm');
+    fs.mkdirSync(reportDir, { recursive: true });
+    const reportPath = path.join(reportDir, `import-report-${Date.now()}.json`);
+    fs.writeFileSync(reportPath, JSON.stringify({ errors }, null, 2), 'utf8');
+    return {
+      version: version || 'v5',
+      filesProcessed: files.map((f) => f.name),
+      counts,
+      reportPath,
+    };
+  } finally {
+    closeDb();
+  }
 }
