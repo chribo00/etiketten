@@ -243,13 +243,15 @@ export function searchAllArticles(opts: {
     const whereC = condC !== '1=1' ? `WHERE ${condC}` : '';
     const params: any = { limit, offset, category: opts.categoryId };
     const total = (db
-      .prepare(`SELECT COUNT(*) as c FROM (SELECT id FROM articles ${whereA} UNION ALL SELECT id FROM custom_articles ${whereC})`)
+      .prepare(
+        `SELECT COUNT(*) as c FROM (SELECT a.id FROM articles a ${whereA} UNION ALL SELECT c.id FROM custom_articles c ${whereC})`,
+      )
       .get(params) as any).c as number;
     const items = db
       .prepare(
-        `SELECT id, articleNumber, ean, name, price, unit, productGroup, category_id, 'import' AS source FROM articles ${whereA}
+        `SELECT a.id AS id, a.articleNumber AS articleNumber, a.ean AS ean, a.name AS name, a.price AS price, a.unit AS unit, a.productGroup AS productGroup, a.category_id AS category_id, 'import' AS source FROM articles a ${whereA}
          UNION ALL
-         SELECT id, articleNumber, ean, name, price, unit, productGroup, category_id, 'custom' AS source FROM custom_articles ${whereC}
+         SELECT c.id AS id, c.articleNumber AS articleNumber, c.ean AS ean, c.name AS name, c.price AS price, c.unit AS unit, c.productGroup AS productGroup, c.category_id AS category_id, 'custom' AS source FROM custom_articles c ${whereC}
          ORDER BY name COLLATE NOCASE ASC, articleNumber COLLATE NOCASE ASC LIMIT @limit OFFSET @offset`,
       )
       .all(params);
@@ -272,11 +274,11 @@ export function searchAllArticles(opts: {
   let items: any[] = [];
   if (total > 0) {
     const itemsSql = `${base}
-      SELECT a.id, a.articleNumber, a.ean, a.name, a.price, a.unit, a.productGroup, a.category_id, 'import' AS source, q.rank
+      SELECT a.id AS id, a.articleNumber AS articleNumber, a.ean AS ean, a.name AS name, a.price AS price, a.unit AS unit, a.productGroup AS productGroup, a.category_id AS category_id, 'import' AS source, q.rank
       FROM q JOIN articles a ON a.id=q.rowid
       WHERE q.rowid>0 AND ${condA}
       UNION ALL
-      SELECT c.id, c.articleNumber, c.ean, c.name, c.price, c.unit, c.productGroup, c.category_id, 'custom' AS source, q.rank
+      SELECT c.id AS id, c.articleNumber AS articleNumber, c.ean AS ean, c.name AS name, c.price AS price, c.unit AS unit, c.productGroup AS productGroup, c.category_id AS category_id, 'custom' AS source, q.rank
       FROM q JOIN custom_articles c ON c.id=-q.rowid
       WHERE q.rowid<0 AND ${condC}
       ORDER BY q.rank DESC, name COLLATE NOCASE ASC, articleNumber COLLATE NOCASE ASC
@@ -306,12 +308,12 @@ export function searchAllArticles(opts: {
     total = (db.prepare(countLike).get(likeParams) as any).c as number;
     if (total > 0) {
       const itemsLike = `
-        SELECT id, articleNumber, ean, name, price, unit, productGroup, category_id, 'import' AS source, 0 AS rank
-        FROM articles a LEFT JOIN categories cat ON cat.id=a.category_id
+        SELECT a.id AS id, a.articleNumber AS articleNumber, a.ean AS ean, a.name AS name, a.price AS price, a.unit AS unit, a.productGroup AS productGroup, a.category_id AS category_id, 'import' AS source, 0 AS rank
+        FROM articles a LEFT JOIN categories cat ON cat.id = a.category_id
         WHERE ${whereA} AND ${condA}
         UNION ALL
-        SELECT id, articleNumber, ean, name, price, unit, productGroup, category_id, 'custom' AS source, 0 AS rank
-        FROM custom_articles c LEFT JOIN categories cat ON cat.id=c.category_id
+        SELECT c.id AS id, c.articleNumber AS articleNumber, c.ean AS ean, c.name AS name, c.price AS price, c.unit AS unit, c.productGroup AS productGroup, c.category_id AS category_id, 'custom' AS source, 0 AS rank
+        FROM custom_articles c LEFT JOIN categories cat ON cat.id = c.category_id
         WHERE ${whereC} AND ${condC}
         ORDER BY name COLLATE NOCASE ASC, articleNumber COLLATE NOCASE ASC
         LIMIT @limit OFFSET @offset`;
