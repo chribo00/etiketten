@@ -1,5 +1,5 @@
-import fs from 'fs';
-import path from 'path';
+import * as fs from 'fs';
+import * as path from 'path';
 import readline from 'readline';
 import { decodeCp850 } from './encoding';
 import { resolveInputFiles, InputFile } from './io';
@@ -28,7 +28,25 @@ import {
   insertPriceTier,
   insertMedia,
 } from '../db';
-import type { DatanormImportOptions, ImportResult } from './index';
+import type { DatanormImportOptions } from './index';
+
+type ImportCounts = {
+  inserted: number;
+  updated: number;
+  skipped: number;
+  errors: number;
+};
+
+type ImportError = {
+  line?: number;
+  message: string;
+};
+
+export type ImportResult = {
+  version: 'v4' | 'v5';
+  counts: ImportCounts;
+  reportPath?: string;
+};
 
 interface ProcessState {
   articleTexts: Record<string, string[]>;
@@ -44,8 +62,8 @@ async function processFile(
   version: 'v4' | 'v5',
   opts: DatanormImportOptions,
   state: ProcessState,
-  counts: any,
-  errors: any[]
+  counts: ImportCounts,
+  errors: ImportError[]
 ): Promise<{ lines: number; errors: number }> {
   const db = getDb();
   const rl = readline.createInterface({
@@ -66,35 +84,35 @@ async function processFile(
       switch (rec.type) {
         case 'S': {
           const r = rec as WarengruppeRecord;
-          const id = upsertWarengruppe({
+          upsertWarengruppe({
             hauptgruppe: r.hauptgruppe,
             gruppe: r.gruppe,
             bezeichnung: r.bezeichnung,
           });
-          (counts.warengruppen += 1);
+          counts.inserted++;
           break;
         }
         case 'R': {
           const r = rec as RabattgruppeRecord;
           upsertRabattgruppe({ nummer: r.nummer, bezeichnung: r.bezeichnung });
-          counts.rabattgruppen += 1;
+          counts.inserted++;
           break;
         }
         case 'A': {
           const r = rec as ArticleRecord;
           const val = validateArticle(r, version);
           if (val.length) throw new Error(val.map((v) => `${v.field}:${v.message}`).join(','));
-          const articleId = upsertArticle({
+          upsertArticle({
             ...r,
             warengruppe_id: undefined,
             rabattgruppe_id: undefined,
           });
-          counts.articles += 1;
+          counts.inserted++;
           break;
         }
         case 'B': {
           const r = rec as ArticleAddRecord;
-          const articleId = upsertArticle({
+          upsertArticle({
             type: 'A',
             artnr: r.artnr,
             kurztext1: '',
@@ -103,12 +121,14 @@ async function processFile(
             katalogseite: r.katalogseite,
             steuer_merker: r.steuer_merker,
           } as any);
+          counts.inserted++;
           break;
         }
         case 'T': {
           const r = rec as TextRecord;
           if (!state.articleTexts[r.artnr]) state.articleTexts[r.artnr] = [];
           state.articleTexts[r.artnr].push(r.text);
+          counts.inserted++;
           break;
         }
         case 'P': {
@@ -128,7 +148,7 @@ async function processFile(
               kundennr: r.kundennr,
             });
             state.lastPriceId[r.artnr] = priceId;
-            counts.prices += 1;
+            counts.inserted++;
           }
           break;
         }
@@ -138,7 +158,7 @@ async function processFile(
           if (priceId) {
             const cents = Math.round(parseFloat(r.aufabschlag.replace(',', '.')) * 100);
             insertPriceTier({ price_id: priceId, von_menge: r.von_menge, zu_abaufschlag_cent: cents });
-            counts.priceTiers += 1;
+            counts.inserted++;
           }
           break;
         }
@@ -147,7 +167,7 @@ async function processFile(
           const art = db.prepare('SELECT id FROM articles WHERE artnr=?').get(r.artnr);
           if (art) {
             insertMedia({ article_id: art.id, art: r.art, dateiname: r.dateiname, beschreibung: r.beschreibung });
-            counts.media += 1;
+            counts.inserted++;
           }
           break;
         }
@@ -155,11 +175,12 @@ async function processFile(
           break;
         default:
           skipped++;
+          counts.skipped++;
       }
       ok++;
     } catch (e: any) {
       err++;
-      errors.push({ file: file.name, line: lineNo, error: e.message });
+      errors.push({ line: lineNo, message: e instanceof Error ? e.message : String(e) });
     }
     opts.onProgress?.({ file: file.name, line: lineNo, ok, skipped, errors: err });
   }
@@ -168,7 +189,7 @@ async function processFile(
     const art = db.prepare('SELECT id FROM articles WHERE artnr=?').get(artnr);
     if (art) {
       setArticleText(art.id, state.articleTexts[artnr].join('\n'));
-      counts.texts += 1;
+      counts.inserted++;
     }
   }
   return { lines: lineNo, errors: err };
@@ -179,47 +200,37 @@ export async function runImport(opts: DatanormImportOptions): Promise<ImportResu
   const dbPath = path.join(opts.input, 'datanorm.sqlite');
   closeDb();
   const db = getDb(dbPath);
+
+  const errors: ImportError[] = [];
+  const counts: ImportCounts = { inserted: 0, updated: 0, skipped: 0, errors: 0 };
+  let version: 'v4' | 'v5' = 'v5';
+  const reportPath = path.join(opts.input, 'datanorm-import-report.json');
+
   try {
-    const counts = {
-    articles: 0,
-    texts: 0,
-    warengruppen: 0,
-    rabattgruppen: 0,
-    prices: 0,
-    priceTiers: 0,
-    media: 0,
-    sets: 0,
-    errors: 0,
-  };
-    const errors: any[] = [];
-    let version: 'v4' | 'v5' | null = null;
     for (const f of files) {
-    const firstLine = fs.readFileSync(f.path, { encoding: 'utf8' }).split(/\r?\n/)[0];
-    const v = opts.version && opts.version !== 'auto' ? opts.version : detectVersion(firstLine);
-    if (!version) version = v;
-    const state: ProcessState = { articleTexts: {}, lastPriceId: {} };
-    db.exec('BEGIN');
-    const result = await processFile(f, v as 'v4' | 'v5', opts, state, counts, errors);
-    const ratio = result.lines ? result.errors / result.lines : 0;
-    if (opts.dryRun || ratio > 0.05) {
-      db.exec('ROLLBACK');
-    } else {
-      db.exec('COMMIT');
+      const firstLine = fs.readFileSync(f.path, { encoding: 'utf8' }).split(/\r?\n/)[0];
+      const v = opts.version && opts.version !== 'auto' ? opts.version : detectVersion(firstLine);
+      version = v;
+      const state: ProcessState = { articleTexts: {}, lastPriceId: {} };
+      db.exec('BEGIN');
+      const result = await processFile(f, v as 'v4' | 'v5', opts, state, counts, errors);
+      const ratio = result.lines ? result.errors / result.lines : 0;
+      if (opts.dryRun || ratio > 0.05) {
+        db.exec('ROLLBACK');
+      } else {
+        db.exec('COMMIT');
+      }
     }
-  }
-    }
-    counts.errors = errors.length;
-    const reportDir = path.join(process.cwd(), '.datanorm');
-    fs.mkdirSync(reportDir, { recursive: true });
-    const reportPath = path.join(reportDir, `import-report-${Date.now()}.json`);
-    fs.writeFileSync(reportPath, JSON.stringify({ errors }, null, 2), 'utf8');
-    return {
-      version: version || 'v5',
-      filesProcessed: files.map((f) => f.name),
-      counts,
-      reportPath,
-    };
+  } catch (e) {
+    errors.push({ message: e instanceof Error ? e.message : String(e) });
   } finally {
+    counts.errors = errors.length;
+    try {
+      fs.writeFileSync(reportPath, JSON.stringify({ errors }, null, 2), 'utf8');
+    } catch {
+      // ignore
+    }
     closeDb();
   }
+  return { version, counts, reportPath } satisfies ImportResult;
 }

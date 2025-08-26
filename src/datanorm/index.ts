@@ -1,4 +1,4 @@
-import { runImport } from './importer';
+import { runImport, type ImportResult } from './importer';
 
 export interface DatanormImportOptions {
   input: string;
@@ -8,22 +8,7 @@ export interface DatanormImportOptions {
   version?: 'v4' | 'v5' | 'auto';
 }
 
-export interface ImportResult {
-  version: 'v4' | 'v5';
-  filesProcessed: string[];
-  counts: {
-    articles: number;
-    texts: number;
-    warengruppen: number;
-    rabattgruppen: number;
-    prices: number;
-    priceTiers: number;
-    media: number;
-    sets: number;
-    errors: number;
-  };
-  reportPath: string;
-}
+export type { ImportResult };
 
 export async function importDatanorm(opts: DatanormImportOptions): Promise<ImportResult> {
   const options = { version: 'auto', dryRun: false, ...opts } as DatanormImportOptions;
