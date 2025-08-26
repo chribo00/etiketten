@@ -46,6 +46,11 @@ body {
   background: #ccc;
 }
 
+.label__footer {
+  margin-top: 4px;
+  font-size: 8px;
+}
+
 @media print {
   .label {
     margin-bottom: 2cm;

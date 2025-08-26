@@ -19,6 +19,7 @@ const LabelPreview: React.FC<Props> = ({ opts }) => {
           </svg>
         </div>
       )}
+      <div className="label__footer">Elektro Brunner Johann</div>
     </div>
   );
 };

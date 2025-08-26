@@ -33,6 +33,12 @@ const bridge = {
     delete: (id: number, mode: 'reassign' | 'deleteArticles', reassignToId?: number | null) =>
       ipcRenderer.invoke('categories:delete', { id, mode, reassignToId }),
   },
+  media: {
+    addPrimary: (articleId: number, filePath: string, alt?: string) =>
+      ipcRenderer.invoke('media:addPrimary', { articleId, filePath, alt }),
+    list: (articleId: number) => ipcRenderer.invoke('media:list', { articleId }),
+    remove: (mediaId: number) => ipcRenderer.invoke('media:remove', { mediaId }),
+  },
   dbInfo: () => ipcRenderer.invoke('db:info'),
   dbClear: () => ipcRenderer.invoke('db:clear'),
 };

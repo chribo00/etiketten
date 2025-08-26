@@ -7,6 +7,7 @@ export type CartItem = {
   ean?: string;
   articleNumber?: string;
   qty: number;
+  imageData?: string;
 };
 
 export async function generateLabelsPdf(
@@ -71,6 +72,13 @@ export async function generateLabelsPdf(
         cursorY += priceHeight + 4;
       }
 
+      if (item.imageData) {
+        const maxW = conf.labelW - 6;
+        const imgH = conf.barcodeH; // rough height
+        doc.addImage(item.imageData, 'PNG', x + 3, cursorY, maxW, imgH);
+        cursorY += imgH + 4;
+      }
+
       if (item.articleNumber) {
         const png = await renderBarcodePng(
           item.articleNumber,
@@ -87,6 +95,10 @@ export async function generateLabelsPdf(
           conf.barcodeH
         );
         cursorY = barcodeY + conf.barcodeH;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.text('Elektro Brunner Johann', x + 3, cursorY + 4, { baseline: 'top' });
+        cursorY += 10;
         barcodeCount++;
         if (barcodeCount % 8 === 0) await Promise.resolve();
       }
