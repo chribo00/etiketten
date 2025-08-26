@@ -149,6 +149,20 @@ export function ensureSchema(db: Database) {
   }
   db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_name ON categories(LOWER(name));`);
 
+  db.exec(`
+  CREATE TABLE IF NOT EXISTS article_media (
+    id INTEGER PRIMARY KEY,
+    article_id INTEGER NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+    path TEXT NOT NULL,
+    alt TEXT,
+    is_primary INTEGER NOT NULL DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+  `);
+  db.exec(
+    `CREATE INDEX IF NOT EXISTS idx_article_media_article_primary ON article_media(article_id, is_primary);`,
+  );
+
   // FTS table for fast article search
   try {
     db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS articles_fts USING fts5(

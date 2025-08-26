@@ -3,7 +3,7 @@ import path from 'path';
 import PDFDocument from 'pdfkit';
 import bwipjs from 'bwip-js';
 import { app } from 'electron';
-import { getArticle } from '../db';
+import { getArticle, mediaRoot } from '../db';
 
 const mm = (v: number) => v * 2.83465;
 const PAGE = { w: mm(100), h: mm(50), margin: mm(5) };
@@ -74,30 +74,32 @@ export async function generateLabelsPdf(items: Array<{ articleId: string; qty: n
       doc.fontSize(9).text(art.articleNumber, mm(2), cursorY);
       cursorY = doc.y + mm(2);
     }
-    if (it.options.showShortText && art.shortText) {
-      doc.fontSize(10).text(art.shortText, mm(2), cursorY, { width: mm(45) });
+    if (it.options.showShortText && art.name) {
+      doc.fontSize(10).text(art.name, mm(2), cursorY, { width: mm(45) });
       cursorY = doc.y + mm(2);
     }
-    if (it.options.showListPrice && art.listPrice) {
+    if (it.options.showListPrice && art.price) {
       doc
         .fontSize(16)
         .font('Helvetica-Bold')
-        .text(`${art.listPrice.toFixed(2)} €`, mm(2), cursorY);
+        .text(`${art.price.toFixed(2)} €`, mm(2), cursorY);
       doc.font('Helvetica');
       cursorY = doc.y + mm(3);
     }
-    if (it.options.showImage && art.imagePath && fs.existsSync(art.imagePath)) {
-      doc.image(art.imagePath, mm(2), cursorY, {
-        width: mm(38),
-        height: mm(18),
-        fit: [mm(38), mm(18)],
-      });
-      cursorY += mm(18) + mm(3);
+    if (it.options.showImage && art.imagePath) {
+      const imgAbs = path.join(mediaRoot, art.imagePath);
+      if (fs.existsSync(imgAbs)) {
+        doc.image(imgAbs, mm(2), cursorY, { fit: [mm(38), mm(18)] });
+        cursorY += mm(18) + mm(3);
+      }
     }
     if (it.options.showEan && art.articleNumber) {
       const png = await renderBarcode(art.articleNumber);
-      doc.image(png, mm(2), cursorY, { width: mm(48), height: mm(22) });
-      cursorY += mm(22);
+      const barcodeY = cursorY;
+      doc.image(png, mm(2), barcodeY, { width: mm(48), height: mm(22) });
+      cursorY = barcodeY + mm(22);
+      doc.fontSize(8).text('Elektro Brunner Johann', mm(2), cursorY + mm(2));
+      cursorY += mm(4);
     }
   }
 

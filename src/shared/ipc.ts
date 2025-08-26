@@ -18,6 +18,11 @@ export const IPC_CHANNELS = {
   labels: {
     generate: 'ipc.labels.generate',
   },
+  media: {
+    addPrimary: 'ipc.media.addPrimary',
+    list: 'ipc.media.list',
+    remove: 'ipc.media.remove',
+  },
   dialog: {
     open: 'ipc.dialog.open',
   },
@@ -37,5 +42,13 @@ export const CartUpdateSchema = z.object({ id: z.string(), patch: z.object({ qty
 export const CartRemoveSchema = z.string();
 
 export const LabelsGenerateResultSchema = z.object({ pdfPath: z.string() });
+
+export const MediaAddPrimarySchema = z.object({
+  articleId: z.number().int(),
+  filePath: z.string(),
+  alt: z.string().optional(),
+});
+export const MediaListSchema = z.object({ articleId: z.number().int() });
+export const MediaRemoveSchema = z.object({ mediaId: z.number().int() });
 
 export const DialogOpenResultSchema = z.object({ filePaths: z.array(z.string()) });

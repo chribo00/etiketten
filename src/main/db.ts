@@ -13,6 +13,9 @@ const db = new Database(dbPath);
 ensureSchema(db);
 console.log('Schema OK');
 
+export const mediaRoot = path.join(app.getPath('userData'), 'media');
+fs.mkdirSync(mediaRoot, { recursive: true });
+
 db.exec(`
 CREATE TABLE IF NOT EXISTS cart(
   id TEXT PRIMARY KEY,
@@ -249,9 +252,9 @@ export function searchAllArticles(opts: {
       .get(params) as any).c as number;
     const items = db
       .prepare(
-        `SELECT a.id AS id, a.articleNumber AS articleNumber, a.ean AS ean, a.name AS name, a.price AS price, a.unit AS unit, a.productGroup AS productGroup, a.category_id AS category_id, 'import' AS source FROM articles a ${whereA}
+        `SELECT a.id AS id, a.articleNumber AS articleNumber, a.ean AS ean, a.name AS name, a.price AS price, a.unit AS unit, a.productGroup AS productGroup, a.category_id AS category_id, 'import' AS source, am.path AS imagePath FROM articles a LEFT JOIN article_media am ON am.article_id=a.id AND am.is_primary=1 ${whereA}
          UNION ALL
-         SELECT c.id AS id, c.articleNumber AS articleNumber, c.ean AS ean, c.name AS name, c.price AS price, c.unit AS unit, c.productGroup AS productGroup, c.category_id AS category_id, 'custom' AS source FROM custom_articles c ${whereC}
+         SELECT c.id AS id, c.articleNumber AS articleNumber, c.ean AS ean, c.name AS name, c.price AS price, c.unit AS unit, c.productGroup AS productGroup, c.category_id AS category_id, 'custom' AS source, NULL AS imagePath FROM custom_articles c ${whereC}
          ORDER BY name COLLATE NOCASE ASC, articleNumber COLLATE NOCASE ASC LIMIT @limit OFFSET @offset`,
       )
       .all(params);
@@ -274,11 +277,12 @@ export function searchAllArticles(opts: {
   let items: any[] = [];
   if (total > 0) {
     const itemsSql = `${base}
-      SELECT a.id AS id, a.articleNumber AS articleNumber, a.ean AS ean, a.name AS name, a.price AS price, a.unit AS unit, a.productGroup AS productGroup, a.category_id AS category_id, 'import' AS source, q.rank
+      SELECT a.id AS id, a.articleNumber AS articleNumber, a.ean AS ean, a.name AS name, a.price AS price, a.unit AS unit, a.productGroup AS productGroup, a.category_id AS category_id, 'import' AS source, q.rank, am.path AS imagePath
       FROM q JOIN articles a ON a.id=q.rowid
+      LEFT JOIN article_media am ON am.article_id=a.id AND am.is_primary=1
       WHERE q.rowid>0 AND ${condA}
       UNION ALL
-      SELECT c.id AS id, c.articleNumber AS articleNumber, c.ean AS ean, c.name AS name, c.price AS price, c.unit AS unit, c.productGroup AS productGroup, c.category_id AS category_id, 'custom' AS source, q.rank
+      SELECT c.id AS id, c.articleNumber AS articleNumber, c.ean AS ean, c.name AS name, c.price AS price, c.unit AS unit, c.productGroup AS productGroup, c.category_id AS category_id, 'custom' AS source, q.rank, NULL AS imagePath
       FROM q JOIN custom_articles c ON c.id=-q.rowid
       WHERE q.rowid<0 AND ${condC}
       ORDER BY q.rank DESC, name COLLATE NOCASE ASC, articleNumber COLLATE NOCASE ASC
@@ -308,11 +312,11 @@ export function searchAllArticles(opts: {
     total = (db.prepare(countLike).get(likeParams) as any).c as number;
     if (total > 0) {
       const itemsLike = `
-        SELECT a.id AS id, a.articleNumber AS articleNumber, a.ean AS ean, a.name AS name, a.price AS price, a.unit AS unit, a.productGroup AS productGroup, a.category_id AS category_id, 'import' AS source, 0 AS rank
-        FROM articles a LEFT JOIN categories cat ON cat.id = a.category_id
+        SELECT a.id AS id, a.articleNumber AS articleNumber, a.ean AS ean, a.name AS name, a.price AS price, a.unit AS unit, a.productGroup AS productGroup, a.category_id AS category_id, 'import' AS source, 0 AS rank, am.path AS imagePath
+        FROM articles a LEFT JOIN categories cat ON cat.id = a.category_id LEFT JOIN article_media am ON am.article_id=a.id AND am.is_primary=1
         WHERE ${whereA} AND ${condA}
         UNION ALL
-        SELECT c.id AS id, c.articleNumber AS articleNumber, c.ean AS ean, c.name AS name, c.price AS price, c.unit AS unit, c.productGroup AS productGroup, c.category_id AS category_id, 'custom' AS source, 0 AS rank
+        SELECT c.id AS id, c.articleNumber AS articleNumber, c.ean AS ean, c.name AS name, c.price AS price, c.unit AS unit, c.productGroup AS productGroup, c.category_id AS category_id, 'custom' AS source, 0 AS rank, NULL AS imagePath
         FROM custom_articles c LEFT JOIN categories cat ON cat.id = c.category_id
         WHERE ${whereC} AND ${condC}
         ORDER BY name COLLATE NOCASE ASC, articleNumber COLLATE NOCASE ASC
@@ -382,8 +386,55 @@ export function deleteCustomArticle(id: number) {
   return { changes: res.changes };
 }
 
+export function addPrimaryMedia(params: {
+  articleId: number;
+  filePath: string;
+  alt?: string;
+}) {
+  if (!fs.existsSync(params.filePath)) return { error: 'FILE_NOT_FOUND' };
+  const ext = path.extname(params.filePath);
+  const fileName = `${params.articleId}_${Date.now()}${ext}`;
+  const destPath = path.join(mediaRoot, fileName);
+  fs.copyFileSync(params.filePath, destPath);
+  const tx = db.transaction(() => {
+    db.prepare('UPDATE article_media SET is_primary=0 WHERE article_id=?').run(params.articleId);
+    const res = db
+      .prepare('INSERT INTO article_media (article_id, path, alt, is_primary) VALUES (?,?,?,1)')
+      .run(params.articleId, fileName, params.alt ?? null);
+    return { id: Number(res.lastInsertRowid), path: fileName, alt: params.alt ?? null };
+  });
+  return tx();
+}
+
+export function listMedia(articleId: number) {
+  return db
+    .prepare(
+      'SELECT id, article_id, path, alt, is_primary, created_at FROM article_media WHERE article_id=? ORDER BY created_at DESC',
+    )
+    .all(articleId);
+}
+
+export function removeMedia(mediaId: number) {
+  const row = db.prepare('SELECT path FROM article_media WHERE id=?').get(mediaId) as any;
+  if (!row) return { error: 'NOT_FOUND' };
+  db.prepare('DELETE FROM article_media WHERE id=?').run(mediaId);
+  if (row.path && !row.path.startsWith('url:')) {
+    const abs = path.join(mediaRoot, row.path);
+    if (fs.existsSync(abs)) {
+      try {
+        fs.unlinkSync(abs);
+      } catch {}
+    }
+  }
+  return { success: true };
+}
+
 export function getArticle(id: number) {
-  return db.prepare(`SELECT * FROM articles WHERE id=?`).get(id);
+  return db
+    .prepare(
+      `SELECT a.*, m.path AS imagePath FROM articles a LEFT JOIN article_media m ON m.article_id=a.id AND m.is_primary=1 WHERE a.id=?`,
+    )
+    .get(id);
 }
 
 export function addToCart(articleId: number, qty = 1, opts: any = {}) {
