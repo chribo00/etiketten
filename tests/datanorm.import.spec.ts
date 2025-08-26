@@ -5,6 +5,10 @@ import iconv from 'iconv-lite';
 import Database from 'better-sqlite3';
 import { importDatanorm } from '../src/datanorm';
 
+type ArticleRow = { artnr: string };
+type LangTextRow = { langtext: string };
+type CountRow = { c: number };
+
 function tmpDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 }
@@ -35,12 +39,22 @@ describe('DATANORM Import', () => {
     const res = await importDatanorm({ input: dir });
     expect(res.version).toBe('v5');
     const db = new Database(path.join(dir, 'datanorm.sqlite'));
-    const art = db.prepare('SELECT * FROM articles').get();
-    expect(art.artnr).toBe('ART1');
-    const txt = db.prepare('SELECT langtext FROM article_texts').get();
-    expect(txt.langtext).toBe('Langtext1 ä\nLangtext2');
-    const media = db.prepare('SELECT COUNT(*) as c FROM media').get();
-    expect(media.c).toBe(1);
+    // better-sqlite3 typings geben .get() als unknown zurück – für TS-Strictness hier gezielt typisieren.
+    const art = db
+      .prepare('SELECT * FROM articles')
+      .get() as ArticleRow | undefined;
+    expect(art).toBeDefined();
+    expect(art!.artnr).toBe('ART1');
+    const txt = db
+      .prepare('SELECT langtext FROM article_texts')
+      .get() as LangTextRow | undefined;
+    expect(txt).toBeDefined();
+    expect(txt!.langtext).toBe('Langtext1 ä\nLangtext2');
+    const media = db
+      .prepare('SELECT COUNT(*) as c FROM media')
+      .get() as CountRow | undefined;
+    expect(media).toBeDefined();
+    expect(media!.c).toBe(1);
   });
 
   test('imports v4 data', async () => {
@@ -70,8 +84,11 @@ describe('DATANORM Import', () => {
     const res = await importDatanorm({ input: dir });
     expect(res.version).toBe('v4');
     const db = new Database(path.join(dir, 'datanorm.sqlite'));
-    const art = db.prepare('SELECT * FROM articles').get();
-    expect(art.artnr).toBe('ART2');
+    const art = db
+      .prepare('SELECT * FROM articles')
+      .get() as ArticleRow | undefined;
+    expect(art).toBeDefined();
+    expect(art!.artnr).toBe('ART2');
   });
 
   test('rollback on high error ratio', async () => {
@@ -100,7 +117,10 @@ describe('DATANORM Import', () => {
     process.chdir(dir);
     const res = await importDatanorm({ input: dir });
     const db = new Database(path.join(dir, 'datanorm.sqlite'));
-    const count = db.prepare('SELECT COUNT(*) as c FROM articles').get();
-    expect(count.c).toBe(0);
+    const count = db
+      .prepare('SELECT COUNT(*) as c FROM articles')
+      .get() as CountRow | undefined;
+    expect(count).toBeDefined();
+    expect(count!.c).toBe(0);
   });
 });
