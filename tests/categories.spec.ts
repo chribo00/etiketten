@@ -2,6 +2,10 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
+type CategoryRow = { id: number; name: string };
+type CountRow = { c: number };
+type ArticleCategoryRow = { category_id: number | null };
+
 describe('Category CRUD', () => {
   function setup() {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'etik-cat-'));
@@ -40,8 +44,11 @@ describe('Category CRUD', () => {
     db.upsertArticles([{ articleNumber: 'A1', name: 'Test', category_id: cat.id }]);
     const res = db.deleteCategory(cat.id, 'reassign', null);
     expect(res.deleted).toBe(true);
-    const row = db.default.prepare('SELECT category_id FROM articles WHERE articleNumber=?').get('A1');
-    expect(row.category_id).toBeNull();
+    const row = db.default
+      .prepare('SELECT category_id FROM articles WHERE articleNumber=?')
+      .get('A1') as ArticleCategoryRow | undefined;
+    expect(row).toBeDefined();
+    expect(row!.category_id).toBeNull();
   });
 
   test('delete with explicit reassign missing reports error', () => {
@@ -58,7 +65,10 @@ describe('Category CRUD', () => {
     db.upsertArticles([{ articleNumber: 'A1', name: 'Test', category_id: cat.id }]);
     const res = db.deleteCategory(cat.id, 'deleteArticles');
     expect(res.deleted).toBe(true);
-    const cnt = db.default.prepare('SELECT COUNT(*) as c FROM articles').get();
-    expect(cnt.c).toBe(0);
+    const cnt = db.default
+      .prepare('SELECT COUNT(*) as c FROM articles')
+      .get() as CountRow | undefined;
+    expect(cnt).toBeDefined();
+    expect(cnt!.c).toBe(0);
   });
 });
