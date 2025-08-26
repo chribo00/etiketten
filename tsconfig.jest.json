@@ -1,7 +1,9 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "esModuleInterop": true,
+    "moduleResolution": "node",
     "types": ["jest", "node"]
   },
-  "include": ["tests/**/*.ts", "tests/**/*.tsx"]
+  "include": ["tests/**/*.ts", "tests/**/*.tsx", "types/**/*.d.ts"]
 }
