@@ -30,6 +30,8 @@ import {
 } from '../db';
 import type { DatanormImportOptions } from './index';
 
+type CountRow = { c: number };
+
 type ImportCounts = {
   inserted: number;
   updated: number;
@@ -247,10 +249,11 @@ export async function runImport(opts: DatanormImportOptions): Promise<ImportResu
 
   let tableCounts = { articles: 0, texts: 0, media: 0 };
   try {
+    const getCount = (sql: string) => (db.prepare(sql).get() as CountRow).c;
     tableCounts = {
-      articles: db.prepare('SELECT COUNT(*) AS c FROM articles').get().c as number,
-      texts: db.prepare('SELECT COUNT(*) AS c FROM article_texts').get().c as number,
-      media: db.prepare('SELECT COUNT(*) AS c FROM media').get().c as number,
+      articles: getCount('SELECT COUNT(*) AS c FROM articles'),
+      texts:    getCount('SELECT COUNT(*) AS c FROM article_texts'),
+      media:    getCount('SELECT COUNT(*) AS c FROM media'),
     };
   } catch {}
 
