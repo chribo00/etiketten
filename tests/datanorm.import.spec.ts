@@ -38,12 +38,16 @@ describe('DATANORM Import', () => {
     process.chdir(dir);
     const res = await importDatanorm({ input: dir });
     expect(res.version).toBe('v5');
-    const db = new Database(path.join(dir, 'datanorm.sqlite'));
-    // better-sqlite3 typings geben .get() als unknown zurück – für TS-Strictness hier gezielt typisieren.
-    const art = db
-      .prepare('SELECT * FROM articles')
-      .get() as ArticleRow | undefined;
-    expect(art).toBeDefined();
+      const db = new Database(path.join(dir, 'datanorm.sqlite'));
+      // better-sqlite3 typings geben .get() als unknown zurück – für TS-Strictness hier gezielt typisieren.
+      const art = db
+        .prepare('SELECT * FROM articles')
+        .get() as ArticleRow | undefined;
+      const dbFile = path.join(dir, 'datanorm.sqlite');
+      console.log('DB file:', dbFile);
+      const ac = db.prepare('SELECT COUNT(*) c FROM articles').get() as CountRow | undefined;
+      console.log('articles count after import:', ac?.c);
+      expect(art).toBeDefined();
     expect(art!.artnr).toBe('ART1');
     const txt = db
       .prepare('SELECT langtext FROM article_texts')
@@ -83,11 +87,15 @@ describe('DATANORM Import', () => {
     process.chdir(dir);
     const res = await importDatanorm({ input: dir });
     expect(res.version).toBe('v4');
-    const db = new Database(path.join(dir, 'datanorm.sqlite'));
-    const art = db
-      .prepare('SELECT * FROM articles')
-      .get() as ArticleRow | undefined;
-    expect(art).toBeDefined();
+      const db = new Database(path.join(dir, 'datanorm.sqlite'));
+      const art = db
+        .prepare('SELECT * FROM articles')
+        .get() as ArticleRow | undefined;
+      const dbFile = path.join(dir, 'datanorm.sqlite');
+      console.log('DB file:', dbFile);
+      const ac = db.prepare('SELECT COUNT(*) c FROM articles').get() as CountRow | undefined;
+      console.log('articles count after import:', ac?.c);
+      expect(art).toBeDefined();
     expect(art!.artnr).toBe('ART2');
   });
 

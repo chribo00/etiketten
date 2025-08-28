@@ -1,7 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import readline from 'readline';
-import { decodeCp850 } from './encoding';
+import iconv from 'iconv-lite';
 import { resolveInputFiles, InputFile } from './io';
 import { parseV4Line } from './parsers/v4';
 import { parseV5Line } from './parsers/v5';
@@ -45,7 +44,8 @@ type ImportError = {
 
 export type ImportResult = {
   version: 'v4' | 'v5';
-  counts: ImportCounts;
+  counts: { articles: number; texts: number; media: number };
+  dbPath: string;
   reportPath?: string;
 };
 
@@ -58,29 +58,35 @@ function detectVersion(line: string): 'v4' | 'v5' {
   return line.includes(';') ? 'v5' : 'v4';
 }
 
-async function processFile(
+function processFile(
   file: InputFile,
   version: 'v4' | 'v5',
   opts: DatanormImportOptions,
   state: ProcessState,
   counts: ImportCounts,
   errors: ImportError[]
-): Promise<{ lines: number; errors: number }> {
+): { lines: number; errors: number } {
   const db = getDb();
-  const rl = readline.createInterface({
-    input: decodeCp850(fs.createReadStream(file.path)),
-    crlfDelay: Infinity,
-  });
+  const buf = fs.readFileSync(file.path);
+  const text = iconv.decode(buf, 'cp850');
+  const lines = text.split(/\r?\n/);
   let lineNo = 0;
   let ok = 0;
   let err = 0;
   let skipped = 0;
-  const parsed: AnyRecord[] = [];
-  for await (const line of rl) {
+  let loggedArticles = 0;
+  for (const line of lines) {
     lineNo++;
     if (!line.trim()) continue;
     const rec = version === 'v5' ? parseV5Line(line) : parseV4Line(line);
     if (!rec) continue;
+    if ((rec.type === 'A' || rec.type === 'B') && loggedArticles < 3) {
+      if (loggedArticles === 0) {
+        console.debug('First article record', rec);
+      }
+      console.debug('Article artnr', (rec as ArticleRecord | ArticleAddRecord).artnr);
+      loggedArticles++;
+    }
     try {
       switch (rec.type) {
         case 'S': {
@@ -103,17 +109,19 @@ async function processFile(
           const r = rec as ArticleRecord;
           const val = validateArticle(r, version);
           if (val.length) throw new Error(val.map((v) => `${v.field}:${v.message}`).join(','));
-          upsertArticle({
+          const { id } = upsertArticle({
             ...r,
             warengruppe_id: undefined,
             rabattgruppe_id: undefined,
           });
+          console.debug('Upsert article id', id, 'for', r.artnr);
+          if (!id) console.debug('Upsert returned no id for', r.artnr);
           counts.inserted++;
           break;
         }
         case 'B': {
           const r = rec as ArticleAddRecord;
-          upsertArticle({
+          const { id } = upsertArticle({
             type: 'A',
             artnr: r.artnr,
             kurztext1: '',
@@ -122,6 +130,8 @@ async function processFile(
             katalogseite: r.katalogseite,
             steuer_merker: r.steuer_merker,
           } as any);
+          console.debug('Upsert article id', id, 'for', r.artnr);
+          if (!id) console.debug('Upsert returned no id for', r.artnr);
           counts.inserted++;
           break;
         }
@@ -191,11 +201,14 @@ async function processFile(
   }
   // flush texts
   for (const artnr of Object.keys(state.articleTexts)) {
+    const texts = state.articleTexts[artnr];
+    console.debug('Have article texts for', artnr, 'len', texts.length);
     const art = db
       .prepare('SELECT id, artnr FROM articles WHERE artnr=?')
       .get(artnr) as ArticleRow | undefined;
     if (art) {
-      setArticleText(art.id, state.articleTexts[artnr].join('\n'));
+      const info = setArticleText(art.id, texts.join('\n'));
+      console.debug('Insert text result', info);
       counts.inserted++;
     }
   }
@@ -214,30 +227,40 @@ export async function runImport(opts: DatanormImportOptions): Promise<ImportResu
   const reportPath = path.join(opts.input, 'datanorm-import-report.json');
 
   try {
-    for (const f of files) {
-      const firstLine = fs.readFileSync(f.path, { encoding: 'utf8' }).split(/\r?\n/)[0];
-      const v = opts.version && opts.version !== 'auto' ? opts.version : detectVersion(firstLine);
-      version = v;
-      const state: ProcessState = { articleTexts: {}, lastPriceId: {} };
-      db.exec('BEGIN');
-      const result = await processFile(f, v as 'v4' | 'v5', opts, state, counts, errors);
-      const ratio = result.lines ? result.errors / result.lines : 0;
-      if (opts.dryRun || ratio > 0.05) {
-        db.exec('ROLLBACK');
-      } else {
-        db.exec('COMMIT');
+    const tx = db.transaction(() => {
+      for (const f of files) {
+        const firstLine = fs.readFileSync(f.path, { encoding: 'utf8' }).split(/\r?\n/)[0];
+        const v = opts.version && opts.version !== 'auto' ? opts.version : detectVersion(firstLine);
+        version = v;
+        const state: ProcessState = { articleTexts: {}, lastPriceId: {} };
+        const result = processFile(f, v as 'v4' | 'v5', opts, state, counts, errors);
+        const ratio = result.lines ? result.errors / result.lines : 0;
+        if (opts.dryRun || ratio > 0.05) {
+          throw new Error('rollback');
+        }
       }
-    }
+    });
+    tx();
   } catch (e) {
     errors.push({ message: e instanceof Error ? e.message : String(e) });
-  } finally {
-    counts.errors = errors.length;
-    try {
-      fs.writeFileSync(reportPath, JSON.stringify({ errors }, null, 2), 'utf8');
-    } catch {
-      // ignore
-    }
-    closeDb();
   }
-  return { version, counts, reportPath } satisfies ImportResult;
+
+  let tableCounts = { articles: 0, texts: 0, media: 0 };
+  try {
+    tableCounts = {
+      articles: db.prepare('SELECT COUNT(*) AS c FROM articles').get().c as number,
+      texts: db.prepare('SELECT COUNT(*) AS c FROM article_texts').get().c as number,
+      media: db.prepare('SELECT COUNT(*) AS c FROM media').get().c as number,
+    };
+  } catch {}
+
+  counts.errors = errors.length;
+  try {
+    fs.writeFileSync(reportPath, JSON.stringify({ errors }, null, 2), 'utf8');
+  } catch {
+    // ignore
+  }
+  closeDb();
+
+  return { version, counts: tableCounts, dbPath, reportPath } satisfies ImportResult;
 }

@@ -8,12 +8,28 @@ export type ArticleRow = { id: number; artnr: string };
 type IdRow = { id: number };
 
 let db: DatabaseType | null = null;
+let currentPath: string | null = null;
 
-export function getDb(dbPath = path.join(process.cwd(), 'datanorm.sqlite')): DatabaseType {
+function ensureDatanormSchema(database: DatabaseType) {
+  const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
+  database.exec(schema);
+}
+
+export function getDb(dbPath?: string): DatabaseType {
+  if (db && dbPath && dbPath !== currentPath) {
+    try {
+      db.close();
+    } catch {}
+    db = null;
+    currentPath = null;
+  }
   if (!db) {
-    db = new Database(dbPath);
-    const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
-    db.exec(schema);
+    if (!dbPath && !currentPath) {
+      throw new Error('Database path not set');
+    }
+    currentPath = dbPath ?? currentPath!;
+    db = new Database(currentPath);
+    ensureDatanormSchema(db);
   }
   return db;
 }
@@ -22,9 +38,9 @@ export function closeDb() {
   if (db) {
     try {
       db.close();
-    } finally {
-      db = null;
-    }
+    } catch {}
+    db = null;
+    currentPath = null;
   }
 }
 
@@ -81,9 +97,9 @@ export function upsertArticle(rec: ArticleRecord & { warengruppe_id?: number; ra
   return { id: Number(res.lastInsertRowid), artnr: rec.artnr } satisfies ArticleRow;
 }
 
-export function setArticleText(articleId: number, text: string): void {
+export function setArticleText(articleId: number, text: string) {
   const db = getDb();
-  db.prepare('INSERT OR REPLACE INTO article_texts (article_id, langtext) VALUES (?,?)').run(articleId, text);
+  return db.prepare('INSERT OR REPLACE INTO article_texts (article_id, langtext) VALUES (?,?)').run(articleId, text);
 }
 
 export function insertPrice(rec: {
