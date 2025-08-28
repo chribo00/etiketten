@@ -1,6 +1,7 @@
-import type Database from 'better-sqlite3';
+import Database from 'better-sqlite3';
+import type { Database as DatabaseType } from 'better-sqlite3';
 
-export function ensureSchema(db: Database) {
+export function ensureSchema(db: DatabaseType) {
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
   db.exec(`

@@ -3,4 +3,5 @@ declare module 'better-sqlite3' {
     constructor(...args: any[]);
     [key: string]: any;
   }
+  export { Database };
 }

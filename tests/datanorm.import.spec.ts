@@ -3,6 +3,7 @@ import os from 'os';
 import path from 'path';
 import iconv from 'iconv-lite';
 import Database from 'better-sqlite3';
+import type { Database as DatabaseType } from 'better-sqlite3';
 import { importDatanorm } from '../src/datanorm';
 
 type ArticleRow = { artnr: string };
