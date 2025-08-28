@@ -1,11 +1,12 @@
 import Database from 'better-sqlite3';
+import type { Database as DatabaseType } from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
 import { ArticleRecord } from '../datanorm/records';
 
-let db: Database | null = null;
+let db: DatabaseType | null = null;
 
-export function getDb(dbPath = path.join(process.cwd(), 'datanorm.sqlite')): Database {
+export function getDb(dbPath = path.join(process.cwd(), 'datanorm.sqlite')): DatabaseType {
   if (!db) {
     db = new Database(dbPath);
     const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
