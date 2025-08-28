@@ -5,6 +5,9 @@ import path from 'path';
 import { ArticleRecord } from '../datanorm/records';
 
 export type ArticleRow = { id: number; artnr: string };
+type IdRow = { id: number };
+type WarenGruppeRow = { id: number; code: string; bezeichnung: string };
+type RabattGruppeRow = { id: number; code: string; bezeichnung: string };
 
 let db: DatabaseType | null = null;
 
@@ -36,34 +39,35 @@ export function withTransaction<T>(fn: () => T): T {
 export function upsertWarengruppe(code: { hauptgruppe: string; gruppe: string; bezeichnung: string }): number {
   const db = getDb();
   const sel = db.prepare('SELECT id FROM warengruppen WHERE hauptgruppe=? AND gruppe=?');
-  const row = sel.get(code.hauptgruppe, code.gruppe);
+  const row = sel.get<IdRow>(code.hauptgruppe, code.gruppe);
   if (row) {
     db.prepare('UPDATE warengruppen SET bezeichnung=? WHERE id=?').run(code.bezeichnung, row.id);
-    return row.id as number;
+    return row.id;
   }
-  const result = db
+  const info = db
     .prepare('INSERT INTO warengruppen (hauptgruppe,gruppe,bezeichnung) VALUES (?,?,?)')
     .run(code.hauptgruppe, code.gruppe, code.bezeichnung);
-  return result.lastInsertRowid as number;
+  const id = Number(info.lastInsertRowid);
+  return id;
 }
 
 export function upsertRabattgruppe(code: { nummer: string; bezeichnung: string }): number {
   const db = getDb();
-  const row = db.prepare('SELECT id FROM rabattgruppen WHERE nummer=?').get(code.nummer);
+  const row = db.prepare('SELECT id FROM rabattgruppen WHERE nummer=?').get<IdRow>(code.nummer);
   if (row) {
     db.prepare('UPDATE rabattgruppen SET bezeichnung=? WHERE id=?').run(code.bezeichnung, row.id);
-    return row.id as number;
+    return row.id;
   }
-  const res = db
+  const info = db
     .prepare('INSERT INTO rabattgruppen (nummer,bezeichnung) VALUES (?,?)')
     .run(code.nummer, code.bezeichnung);
-  return res.lastInsertRowid as number;
+  return Number(info.lastInsertRowid);
 }
 
 export function upsertArticle(rec: ArticleRecord & { warengruppe_id?: number; rabattgruppe_id?: number }): ArticleRow {
   const db = getDb();
   const sel = db.prepare('SELECT id, artnr FROM articles WHERE artnr=?');
-  const row = sel.get(rec.artnr) as ArticleRow | undefined;
+  const row = sel.get<ArticleRow>(rec.artnr);
   if (row) {
     db.prepare(
       `UPDATE articles SET kurztext1=@kurztext1, kurztext2=@kurztext2, einheit=@einheit, ean=@ean, matchcode=@matchcode, warengruppe_id=@warengruppe_id, rabattgruppe_id=@rabattgruppe_id, katalogseite=@katalogseite, steuer_merker=@steuer_merker, updated_at=CURRENT_TIMESTAMP WHERE id=@id`
@@ -75,7 +79,7 @@ export function upsertArticle(rec: ArticleRecord & { warengruppe_id?: number; ra
       `INSERT INTO articles (artnr, kurztext1, kurztext2, einheit, ean, matchcode, warengruppe_id, rabattgruppe_id, katalogseite, steuer_merker) VALUES (@artnr,@kurztext1,@kurztext2,@einheit,@ean,@matchcode,@warengruppe_id,@rabattgruppe_id,@katalogseite,@steuer_merker)`
     )
     .run(rec);
-  return { id: res.lastInsertRowid as number, artnr: rec.artnr };
+  return { id: Number(res.lastInsertRowid), artnr: rec.artnr };
 }
 
 export function setArticleText(articleId: number, text: string): void {
