@@ -4,6 +4,8 @@ import fs from 'fs';
 import path from 'path';
 import { ArticleRecord } from '../datanorm/records';
 
+export type ArticleRow = { id: number; artnr: string };
+
 let db: DatabaseType | null = null;
 
 export function getDb(dbPath = path.join(process.cwd(), 'datanorm.sqlite')): DatabaseType {
@@ -58,25 +60,25 @@ export function upsertRabattgruppe(code: { nummer: string; bezeichnung: string }
   return res.lastInsertRowid as number;
 }
 
-export function upsertArticle(rec: ArticleRecord & { warengruppe_id?: number; rabattgruppe_id?: number }): number {
+export function upsertArticle(rec: ArticleRecord & { warengruppe_id?: number; rabattgruppe_id?: number }): ArticleRow {
   const db = getDb();
-  const sel = db.prepare('SELECT id FROM articles WHERE artnr=?');
-  const row = sel.get(rec.artnr);
+  const sel = db.prepare('SELECT id, artnr FROM articles WHERE artnr=?');
+  const row = sel.get(rec.artnr) as ArticleRow | undefined;
   if (row) {
     db.prepare(
       `UPDATE articles SET kurztext1=@kurztext1, kurztext2=@kurztext2, einheit=@einheit, ean=@ean, matchcode=@matchcode, warengruppe_id=@warengruppe_id, rabattgruppe_id=@rabattgruppe_id, katalogseite=@katalogseite, steuer_merker=@steuer_merker, updated_at=CURRENT_TIMESTAMP WHERE id=@id`
     ).run({ ...rec, id: row.id });
-    return row.id as number;
+    return row;
   }
   const res = db
     .prepare(
       `INSERT INTO articles (artnr, kurztext1, kurztext2, einheit, ean, matchcode, warengruppe_id, rabattgruppe_id, katalogseite, steuer_merker) VALUES (@artnr,@kurztext1,@kurztext2,@einheit,@ean,@matchcode,@warengruppe_id,@rabattgruppe_id,@katalogseite,@steuer_merker)`
     )
     .run(rec);
-  return res.lastInsertRowid as number;
+  return { id: res.lastInsertRowid as number, artnr: rec.artnr };
 }
 
-export function setArticleText(articleId: number, text: string) {
+export function setArticleText(articleId: number, text: string): void {
   const db = getDb();
   db.prepare('INSERT OR REPLACE INTO article_texts (article_id, langtext) VALUES (?,?)').run(articleId, text);
 }
@@ -108,7 +110,7 @@ export function insertPriceTier(rec: { price_id: number; von_menge: string; zu_a
   );
 }
 
-export function insertMedia(rec: { article_id: number; art: string; dateiname: string; beschreibung?: string }) {
+export function insertMedia(rec: { article_id: number; art: string; dateiname: string; beschreibung?: string }): void {
   const db = getDb();
   db.prepare('INSERT INTO media (article_id, art, dateiname, beschreibung) VALUES (?,?,?,?)').run(
     rec.article_id,
