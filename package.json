@@ -17,8 +17,10 @@
     "rebuild:electron": "electron-rebuild -f -w better-sqlite3",
     "rebuild:all": "npm run rebuild:node && npm run rebuild:electron",
     "postinstall": "npm run rebuild:electron",
-    "pretest": "npm run rebuild:node",
-    "test": "jest",
+    "pretest": "node -e \"process.exit(0)\"",
+    "test": "ts-node -T scripts/run-tests-with-local-headers.ts",
+    "test:unit": "ts-node -T scripts/run-tests-with-local-headers.ts",
+    "test:file": "ts-node -T scripts/run-tests-with-local-headers.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
@@ -43,7 +45,7 @@
   },
   "devDependencies": {
     "typescript": "^5.0.0",
-    "ts-node": "^10.9.1",
+    "ts-node": "^10.9.2",
     "vite": "^5.0.0",
     "concurrently": "^8.0.0",
     "cross-env": "^7.0.0",
