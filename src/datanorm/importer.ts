@@ -27,6 +27,7 @@ import {
   insertPrice,
   insertPriceTier,
   insertMedia,
+  type ArticleRow,
 } from '../db';
 import type { DatanormImportOptions } from './index';
 
@@ -135,7 +136,9 @@ async function processFile(
           const r = rec as PriceRecord;
           const val = validatePrice(r, version);
           if (val.length) throw new Error(val.map((v) => `${v.field}:${v.message}`).join(','));
-          const art = db.prepare('SELECT id FROM articles WHERE artnr=?').get(r.artnr);
+          const art = db
+            .prepare('SELECT id, artnr FROM articles WHERE artnr=?')
+            .get(r.artnr) as ArticleRow | undefined;
           if (art) {
             const cents = Math.round(parseFloat(r.betrag.replace(',', '.')) * 100);
             const priceId = insertPrice({
@@ -164,7 +167,9 @@ async function processFile(
         }
         case 'G': {
           const r = rec as MediaRecord;
-          const art = db.prepare('SELECT id FROM articles WHERE artnr=?').get(r.artnr);
+          const art = db
+            .prepare('SELECT id, artnr FROM articles WHERE artnr=?')
+            .get(r.artnr) as ArticleRow | undefined;
           if (art) {
             insertMedia({ article_id: art.id, art: r.art, dateiname: r.dateiname, beschreibung: r.beschreibung });
             counts.inserted++;
@@ -186,7 +191,9 @@ async function processFile(
   }
   // flush texts
   for (const artnr of Object.keys(state.articleTexts)) {
-    const art = db.prepare('SELECT id FROM articles WHERE artnr=?').get(artnr);
+    const art = db
+      .prepare('SELECT id, artnr FROM articles WHERE artnr=?')
+      .get(artnr) as ArticleRow | undefined;
     if (art) {
       setArticleText(art.id, state.articleTexts[artnr].join('\n'));
       counts.inserted++;

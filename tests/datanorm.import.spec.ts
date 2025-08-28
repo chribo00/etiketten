@@ -5,8 +5,7 @@ import iconv from 'iconv-lite';
 import Database from 'better-sqlite3';
 import type { Database as DatabaseType } from 'better-sqlite3';
 import { importDatanorm } from '../src/datanorm';
-
-type ArticleRow = { artnr: string };
+import type { ArticleRow } from '../src/db';
 type LangTextRow = { langtext: string };
 type CountRow = { c: number };
 
