@@ -42,13 +42,9 @@ async function renderBarcode(artnr: string): Promise<Buffer> {
   const opts = {
     bcid,
     text: code,
-    alttext: trimmed,
     scale: 2,
     height: 20,
-    includetext: true,
-    textxalign: 'center' as const,
-    textfont: 'Helvetica',
-    textsize: 14,
+    includetext: false,
   };
   try {
     return await bwipjs.toBuffer(opts);

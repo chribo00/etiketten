@@ -61,15 +61,11 @@ export async function renderBarcodePng(
     background: '#fff',
     width: Math.max(1, Math.floor(pxW / 180)),
     height: Math.max(30, Math.floor(pxH * 0.65)),
-    displayValue: true,
-    text: trimmed,
-    font: 'Helvetica',
-    fontSize: 14,
-    textMargin: 4,
-    textAlign: 'center',
-    margin: 10,
+    displayValue: false,
+    margin: 0,
     marginTop: 0,
     marginBottom: 0,
+    fontSize: 0,
   };
 
   JsBarcode(canvas, code, opts);

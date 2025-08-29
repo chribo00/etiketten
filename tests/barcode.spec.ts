@@ -19,7 +19,7 @@ test('renders CODE128 for alphanumeric article numbers', async () => {
   const [canvas, code, opts] = mocked.mock.calls[0];
   expect(code).toBe('abc123');
   expect(opts.format).toBe('CODE128');
-  expect(opts.text).toBe('abc123');
+  expect(opts.displayValue).toBe(false);
 });
 
 test('renders EAN13 for 13-digit numbers', async () => {
@@ -27,7 +27,7 @@ test('renders EAN13 for 13-digit numbers', async () => {
   const [canvas, code, opts] = mocked.mock.calls[0];
   expect(code).toBe('0000000123457');
   expect(opts.format).toBe('EAN13');
-  expect(opts.text).toBe('0000000123457');
+  expect(opts.displayValue).toBe(false);
 });
 
 test('falls back to CODE128 for short numbers', async () => {
@@ -35,4 +35,5 @@ test('falls back to CODE128 for short numbers', async () => {
   const [canvas, code, opts] = mocked.mock.calls[0];
   expect(code).toBe('000123');
   expect(opts.format).toBe('CODE128');
+  expect(opts.displayValue).toBe(false);
 });
