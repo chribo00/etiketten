@@ -18,7 +18,9 @@ const PreviewPane: React.FC<Props> = ({ opts }) => {
   };
   return (
     <div>
-      <LabelPreview opts={opts} />
+      <div className="labels-grid">
+        <LabelPreview opts={opts} />
+      </div>
       <Button onClick={generate}>PDF erzeugen</Button>
     </div>
   );
