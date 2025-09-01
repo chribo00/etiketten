@@ -1,14 +1,4 @@
-import type ElectronStore from 'electron-store';
-
-let ElectronStoreCtor: typeof ElectronStore;
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  ElectronStoreCtor = require('electron-store');
-} catch {
-  throw new Error(
-    "electron-store nicht installiert – bitte 'npm i electron-store@^8' ausführen."
-  );
-}
+import Store from 'electron-store';
 
 export type SettingsSchema = {
   pageMargin: { top: number; right: number; bottom: number; left: number };
@@ -26,11 +16,11 @@ const defaults: SettingsSchema = {
   rows: 8,
 };
 
-let store: ElectronStore<SettingsSchema>;
+let store: Store<SettingsSchema>;
 
 function getStore() {
   if (!store) {
-    store = new ElectronStoreCtor<SettingsSchema>({ name: 'settings', defaults });
+    store = new Store<SettingsSchema>({ name: 'settings', defaults });
 
     // Migration: ensure all default keys exist
     for (const [key, value] of Object.entries(defaults)) {
