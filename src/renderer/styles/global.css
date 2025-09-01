@@ -3,6 +3,17 @@ body {
   font-family: sans-serif;
 }
 
+:root {
+  --page-margin-top-mm: 8mm;
+  --page-margin-right-mm: 8mm;
+  --page-margin-bottom-mm: 8mm;
+  --page-margin-left-mm: 8mm;
+  --row-gap-mm: 10mm;
+  --col-gap-mm: 10mm;
+  --footer-margin-top-mm: 6mm;
+  --label-hide-article-number: none;
+}
+
 .label {
   display: flex;
   flex-direction: column;
@@ -58,9 +69,73 @@ body {
   white-space: nowrap;
 }
 
+.label__barcode-number-below {
+  display: var(--label-hide-article-number);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.modal {
+  background: #fff;
+  max-width: 720px;
+  width: 96%;
+  padding: 16px 20px;
+  border-radius: 14px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+}
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+fieldset {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 12px;
+}
+fieldset > label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.chk {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 12px;
+}
+.primary {
+  background: #1f6feb;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+}
+
+.labels-page .toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin: 8px 0 14px 0;
+  gap: 8px;
+}
+
 @media print {
   @page {
-    margin: 8mm;
+    margin: var(--page-margin-top-mm) var(--page-margin-right-mm)
+      var(--page-margin-bottom-mm) var(--page-margin-left-mm);
   }
 
   .labels-grid,
@@ -68,7 +143,15 @@ body {
   .labels-page {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    column-gap: 15mm;
-    row-gap: 12mm;
+    row-gap: var(--row-gap-mm);
+    column-gap: var(--col-gap-mm);
+  }
+
+  .label__footer {
+    margin-top: var(--footer-margin-top-mm) !important;
+  }
+
+  .label__barcode-number-below {
+    display: var(--label-hide-article-number) !important;
   }
 }
