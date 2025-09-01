@@ -8,10 +8,16 @@ body {
   --page-margin-right: 8mm;
   --page-margin-bottom: 8mm;
   --page-margin-left: 8mm;
-  --gap-y: 10mm;
-  --gap-x: 10mm;
+
+  --grid-column-gap: 6mm;
+  --grid-row-gap: 6mm;
+
+  --label-width: 63.5mm;
+  --label-height: 38.1mm;
+
+  --barcode-height: 18mm;
+
   --footer-margin-top: 6mm;
-  --label-hide-article-number: none;
 }
 
 .label {
@@ -47,6 +53,7 @@ body {
   margin-bottom: 3mm;
   position: static;
   overflow: visible;
+  height: var(--barcode-height);
 }
 
 .label__barcode svg,
@@ -69,8 +76,9 @@ body {
   white-space: nowrap;
 }
 
+
 .label__barcode-number-below {
-  display: var(--label-hide-article-number);
+  display: none !important;
 }
 
 .modal-backdrop {
@@ -132,26 +140,32 @@ fieldset > label {
   gap: 8px;
 }
 
+.labels-page,
+.labels-grid,
+.etiketten-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--labels-columns, 3), var(--label-width));
+  grid-auto-rows: var(--label-height);
+  column-gap: var(--grid-column-gap);
+  row-gap: var(--grid-row-gap);
+}
+
 @media print {
   @page {
     margin: var(--page-margin-top) var(--page-margin-right)
-      var(--page-margin-bottom) var(--page-margin-left);
+            var(--page-margin-bottom) var(--page-margin-left);
   }
 
+  .labels-page,
   .labels-grid,
-  .etiketten-grid,
-  .labels-page {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    row-gap: var(--gap-y);
-    column-gap: var(--gap-x);
+  .etiketten-grid {
+    grid-template-columns: repeat(var(--labels-columns, 3), var(--label-width));
+    grid-auto-rows: var(--label-height);
+    column-gap: var(--grid-column-gap);
+    row-gap: var(--grid-row-gap);
   }
 
   .label__footer {
     margin-top: var(--footer-margin-top) !important;
-  }
-
-  .label__barcode-number-below {
-    display: var(--label-hide-article-number) !important;
   }
 }

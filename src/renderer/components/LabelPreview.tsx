@@ -19,9 +19,6 @@ const LabelPreview: React.FC<Props> = ({ opts }) => {
           </svg>
         </div>
       )}
-      {opts.showArticleNumber && (
-        <div className="label__barcode-number-below">12345</div>
-      )}
       <div className="label__footer">Elektro Brunner Johann</div>
     </div>
   );

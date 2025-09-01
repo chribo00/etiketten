@@ -3,8 +3,6 @@ import { Button, Input, Checkbox } from '@fluentui/react-components';
 import CategoryManager from './CategoryManager';
 import ImportWizard from './ImportWizard';
 import { z } from 'zod';
-import { generateLabelsPdf } from '../lib/labelsPdf';
-import type { LabelConfig } from '../lib/labels';
 import { fromArticleToEan13, isValidEan13, onlyDigits } from '../lib/labels';
 
 const currency = new Intl.NumberFormat('de-AT', {
@@ -32,19 +30,6 @@ const ArticleSearch: React.FC = () => {
     const [newCategoryId, setNewCategoryId] = useState<number | undefined>();
     const [catManagerOpen, setCatManagerOpen] = useState(false);
     const [importOpen, setImportOpen] = useState(false);
-
-    const templates: Record<string, Partial<LabelConfig>> = {
-      'a4-3x8': {},
-      'a4-3x7': { cols: 3, rows: 7, labelW: 70, labelH: 37 },
-      'a4-2x7': { cols: 2, rows: 7, labelW: 99, labelH: 38 },
-    };
-    const [template, setTemplate] = useState<keyof typeof templates>('a4-3x8');
-    const [barcodeH, setBarcodeH] = useState(18);
-
-    const onPdf = async () => {
-      if (!cart.length) return;
-      await generateLabelsPdf(cart, { ...templates[template], barcodeH });
-    };
 
     const [artnr, setArtnr] = useState('');
     const [name, setName] = useState('');
@@ -610,26 +595,7 @@ const ArticleSearch: React.FC = () => {
                   gap: '8px',
                 }}
               >
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <label>Vorlage:</label>
-                  <select
-                    value={template}
-                    onChange={(e) => setTemplate(e.target.value as keyof typeof templates)}
-                  >
-                    <option value="a4-3x8">A4 3×8 (63,5×38,1)</option>
-                    <option value="a4-3x7">A4 3×7 (70×37)</option>
-                    <option value="a4-2x7">A4 2×7 (99×38)</option>
-                  </select>
-                  <label>BarcodeH:</label>
-                  <input
-                    type="number"
-                    value={barcodeH}
-                    onChange={(e) => setBarcodeH(parseFloat(e.target.value) || 0)}
-                    style={{ width: '60px' }}
-                  />
-                </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <Button onClick={onPdf}>PDF-Etiketten erzeugen</Button>
                   <Button onClick={() => setCart([])}>Warenkorb leeren</Button>
                   <Button onClick={() => setImportOpen(true)}>
                     Importieren (CSV/XLSX/TXT)

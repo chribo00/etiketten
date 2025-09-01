@@ -1,5 +1,5 @@
 import JsBarcode from 'jsbarcode';
-import type { LayoutSettings } from '../../shared/layout';
+import type { LabelSettings } from '../labels/formatSettings';
 
 type Item = {
   articleNumber?: string;
@@ -14,10 +14,10 @@ function renderBarcodeSvg(code: string, heightMM: number): string {
   return svg.outerHTML;
 }
 
-export function buildLabelSheetHTML({ items, layout }: { items: Item[]; layout: LayoutSettings; }): string {
-  const css = `:root{\n  --page-margin-top:${layout.pageMargin.top}mm;\n  --page-margin-right:${layout.pageMargin.right}mm;\n  --page-margin-bottom:${layout.pageMargin.bottom}mm;\n  --page-margin-left:${layout.pageMargin.left}mm;\n  --label-w:${layout.labelSize.width}mm;\n  --label-h:${layout.labelSize.height}mm;\n  --gap-x:${layout.spacing.horizontal}mm;\n  --gap-y:${layout.spacing.vertical}mm;\n  --cols:${layout.grid.columns};\n  --rows:${layout.grid.rows};\n  --barcode-h:${layout.barcodeHeightMM}mm;\n}\n@page{size:A4;margin:0;}\nhtml,body{height:100%;}\n.page{box-sizing:border-box;padding:var(--page-margin-top) var(--page-margin-right) var(--page-margin-bottom) var(--page-margin-left);width:210mm;min-height:297mm;}\n.sheet{display:grid;grid-template-columns:repeat(var(--cols),var(--label-w));grid-template-rows:repeat(var(--rows),var(--label-h));column-gap:var(--gap-x);row-gap:var(--gap-y);}\n.label{box-sizing:border-box;width:var(--label-w);height:var(--label-h);overflow:hidden;}\n.barcode{height:var(--barcode-h);}\n.barcode svg{width:100%;height:var(--barcode-h);}\n.price{font-weight:bold;}`;
+export function buildLabelSheetHTML({ items, settings }: { items: Item[]; settings: LabelSettings; }): string {
+  const css = `:root{\n  --page-margin-top:${settings.page.top}mm;\n  --page-margin-right:${settings.page.right}mm;\n  --page-margin-bottom:${settings.page.bottom}mm;\n  --page-margin-left:${settings.page.left}mm;\n  --label-width:${settings.label.width}mm;\n  --label-height:${settings.label.height}mm;\n  --grid-column-gap:${settings.gap.col}mm;\n  --grid-row-gap:${settings.gap.row}mm;\n  --labels-columns:${settings.grid.cols};\n  --barcode-height:${settings.barcode.height}mm;\n}\n@page{size:A4;margin:0;}\nhtml,body{height:100%;}\n.page{box-sizing:border-box;padding:var(--page-margin-top) var(--page-margin-right) var(--page-margin-bottom) var(--page-margin-left);width:210mm;min-height:297mm;}\n.sheet{display:grid;grid-template-columns:repeat(var(--labels-columns),var(--label-width));grid-auto-rows:var(--label-height);column-gap:var(--grid-column-gap);row-gap:var(--grid-row-gap);}\n.label{box-sizing:border-box;width:var(--label-width);height:var(--label-height);overflow:hidden;}\n.barcode{height:var(--barcode-height);}\n.barcode svg{width:100%;height:var(--barcode-height);}\n.price{font-weight:bold;}`;
 
-  const perPage = layout.grid.columns * layout.grid.rows;
+  const perPage = settings.grid.cols * settings.grid.rows;
   const pages: string[] = [];
   const totalPages = Math.max(1, Math.ceil(items.length / perPage));
   for (let p = 0; p < totalPages; p++) {
@@ -25,7 +25,7 @@ export function buildLabelSheetHTML({ items, layout }: { items: Item[]; layout: 
     while (slice.length < perPage) slice.push({});
     const labels = slice
       .map(it => {
-        const barcode = it.articleNumber ? `<div class="barcode">${renderBarcodeSvg(it.articleNumber, layout.barcodeHeightMM)}</div>` : '';
+        const barcode = it.articleNumber ? `<div class="barcode">${renderBarcodeSvg(it.articleNumber, settings.barcode.height)}</div>` : '';
         const price = it.price != null ? `<div class="price">${it.price.toFixed(2)} €</div>` : '';
         return `<div class="label"><div>${it.articleNumber || ''}</div><div>${it.name || ''}</div>${price}${barcode}</div>`;
       })
