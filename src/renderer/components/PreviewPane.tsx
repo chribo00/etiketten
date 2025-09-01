@@ -3,7 +3,7 @@ import LabelPreview from './LabelPreview';
 import LabelLayoutDialog from './LabelLayoutDialog';
 import { Button } from '@fluentui/react-components';
 import type { LabelOptions } from './LabelOptionsPane';
-import { applyLayoutCssVariables, loadLayout } from '../lib/labelLayoutStore';
+import { applyLayoutCssVariables, sanitizeLayout, validateLayout } from '../lib/labelLayoutStore';
 import { buildLabelSheetHTML } from '../print/LabelSheet';
 
 interface Props {
@@ -18,13 +18,19 @@ const PreviewPane: React.FC<Props> = ({ opts }) => {
   const generate = async () => {
     const cart = (await window.bridge?.cart?.get?.()) || [];
     if (!cart.length) return;
-    const layout = await loadLayout();
-    const html = buildLabelSheetHTML({ items: cart, layout, barcodeHeightMM: layout.barcodeHeightMM ?? 18 });
+    const raw = await window.api.settings.getAll();
+    const layout = sanitizeLayout(raw);
+    const err = validateLayout(layout);
+    if (err) {
+      alert(err);
+      return;
+    }
+    const html = buildLabelSheetHTML({ items: cart, layout });
     const res = await window.api.print.labelsToPDF({
       jobName: 'Etiketten',
       html,
       pageSize: 'A4',
-      marginsMM: layout.pageMargin,
+      marginsMM: { top: 0, right: 0, bottom: 0, left: 0 },
       saveDialog: true,
       defaultPath: 'etiketten.pdf',
     });

@@ -1,61 +1,83 @@
-export type Layout = {
-  pageMargin: { top: number; right: number; bottom: number; left: number };
-  labelSize: { width: number; height: number };
-  spacing: { horizontal: number; vertical: number };
-  columns: number;
-  rows: number;
-  barcodeHeightMM?: number;
-};
+import type { LayoutSettings } from '../../shared/layout';
 
-export const defaultLayout: Layout = {
+export const defaultLayout: LayoutSettings = {
   pageMargin: { top: 8, right: 8, bottom: 8, left: 8 },
   labelSize: { width: 70, height: 37 },
   spacing: { horizontal: 4, vertical: 8 },
-  columns: 3,
-  rows: 8,
+  grid: { columns: 3, rows: 8 },
   barcodeHeightMM: 18,
 };
 
-async function ensureLayout(): Promise<Layout> {
-  const data = (await window.api.settings.getAll()) as Record<string, unknown>;
+function num(val: any, min: number, max: number): number {
+  const n = parseFloat(String(val).replace(',', '.'));
+  if (isNaN(n)) return min;
+  return Math.min(max, Math.max(min, n));
+}
+
+function int(val: any, min: number, max: number): number {
+  return Math.round(num(val, min, max));
+}
+
+export function sanitizeLayout(input: any): LayoutSettings {
   return {
-    pageMargin: { ...defaultLayout.pageMargin, ...(data.pageMargin as any) },
-    labelSize: { ...defaultLayout.labelSize, ...(data.labelSize as any) },
-    spacing: { ...defaultLayout.spacing, ...(data.spacing as any) },
-    columns: (data.columns as number) ?? defaultLayout.columns,
-    rows: (data.rows as number) ?? defaultLayout.rows,
-    barcodeHeightMM: (data.barcodeHeightMM as number) ?? defaultLayout.barcodeHeightMM,
+    pageMargin: {
+      top: num(input?.pageMargin?.top, 0, 25),
+      right: num(input?.pageMargin?.right, 0, 25),
+      bottom: num(input?.pageMargin?.bottom, 0, 25),
+      left: num(input?.pageMargin?.left, 0, 25),
+    },
+    spacing: {
+      horizontal: num(input?.spacing?.horizontal, 0, 50),
+      vertical: num(input?.spacing?.vertical, 0, 50),
+    },
+    labelSize: {
+      width: num(input?.labelSize?.width, 1, 210),
+      height: num(input?.labelSize?.height, 1, 297),
+    },
+    grid: {
+      columns: int(input?.grid?.columns, 1, 20),
+      rows: int(input?.grid?.rows, 1, 20),
+    },
+    barcodeHeightMM: num(input?.barcodeHeightMM, 1, 200),
   };
 }
 
-export async function loadLayout(): Promise<Layout> {
-  return ensureLayout();
+export function validateLayout(l: LayoutSettings): string | null {
+  const totalW = l.grid.columns * l.labelSize.width +
+    (l.grid.columns - 1) * l.spacing.horizontal +
+    l.pageMargin.left + l.pageMargin.right;
+  if (totalW > 210) return 'Breite überschreitet A4';
+  const totalH = l.grid.rows * l.labelSize.height +
+    (l.grid.rows - 1) * l.spacing.vertical +
+    l.pageMargin.top + l.pageMargin.bottom;
+  if (totalH > 297) return 'Höhe überschreitet A4';
+  return null;
 }
 
-export async function saveLayout(patch: Partial<Layout>): Promise<void> {
-  for (const [key, value] of Object.entries(patch)) {
-    await window.api.settings.set(key, value as unknown);
-  }
+export async function loadLayout(): Promise<LayoutSettings> {
+  const data = (await window.api.settings.getAll()) as any;
+  const merged = {
+    pageMargin: { ...defaultLayout.pageMargin, ...(data.pageMargin || {}) },
+    spacing: { ...defaultLayout.spacing, ...(data.spacing || {}) },
+    labelSize: { ...defaultLayout.labelSize, ...(data.labelSize || {}) },
+    grid: { ...defaultLayout.grid, ...(data.grid || {}) },
+    barcodeHeightMM: data.barcodeHeightMM ?? defaultLayout.barcodeHeightMM,
+  };
+  return sanitizeLayout(merged);
 }
 
-export async function resetLayout(): Promise<void> {
-  await window.api.settings.reset();
-}
-
-export async function applyLayoutCssVariables(layout?: Layout): Promise<void> {
-  const s = layout ?? (await ensureLayout());
+export async function applyLayoutCssVariables(layout?: LayoutSettings): Promise<void> {
+  const s = layout ?? (await loadLayout());
   const r = document.documentElement;
-  r.style.setProperty('--page-margin-top-mm', `${s.pageMargin.top}mm`);
-  r.style.setProperty('--page-margin-right-mm', `${s.pageMargin.right}mm`);
-  r.style.setProperty('--page-margin-bottom-mm', `${s.pageMargin.bottom}mm`);
-  r.style.setProperty('--page-margin-left-mm', `${s.pageMargin.left}mm`);
-  r.style.setProperty('--label-width-mm', `${s.labelSize.width}mm`);
-  r.style.setProperty('--label-height-mm', `${s.labelSize.height}mm`);
-  r.style.setProperty('--spacing-horizontal-mm', `${s.spacing.horizontal}mm`);
-  r.style.setProperty('--spacing-vertical-mm', `${s.spacing.vertical}mm`);
-  r.style.setProperty('--label-columns', String(s.columns));
-  r.style.setProperty('--label-rows', String(s.rows));
-  if (s.barcodeHeightMM != null) {
-    r.style.setProperty('--barcode-height-mm', `${s.barcodeHeightMM}mm`);
-  }
+  r.style.setProperty('--page-margin-top', `${s.pageMargin.top}mm`);
+  r.style.setProperty('--page-margin-right', `${s.pageMargin.right}mm`);
+  r.style.setProperty('--page-margin-bottom', `${s.pageMargin.bottom}mm`);
+  r.style.setProperty('--page-margin-left', `${s.pageMargin.left}mm`);
+  r.style.setProperty('--label-w', `${s.labelSize.width}mm`);
+  r.style.setProperty('--label-h', `${s.labelSize.height}mm`);
+  r.style.setProperty('--gap-x', `${s.spacing.horizontal}mm`);
+  r.style.setProperty('--gap-y', `${s.spacing.vertical}mm`);
+  r.style.setProperty('--cols', String(s.grid.columns));
+  r.style.setProperty('--rows', String(s.grid.rows));
+  r.style.setProperty('--barcode-h', `${s.barcodeHeightMM}mm`);
 }
