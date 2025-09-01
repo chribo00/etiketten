@@ -1,21 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import {
-  loadLayout,
-  applyLayoutCssVariables,
-  sanitizeLayout,
-  validateLayout,
-  maxLabelWidthMm,
-} from '../lib/labelLayoutStore';
-import type { LayoutSettings } from '../../shared/layout';
+  loadLabelSettings,
+  saveLabelSettings,
+  validateA4,
+  applyCssVars,
+} from '../labels/formatSettings';
+import type { LabelSettings } from '../labels/formatSettings';
 
 type Props = { open: boolean; onClose: () => void };
 
 export default function LabelLayoutDialog({ open, onClose }: Props) {
-  const [v, setV] = useState<LayoutSettings | null>(null);
+  const [v, setV] = useState<LabelSettings | null>(null);
 
   useEffect(() => {
     if (open) {
-      loadLayout().then(setV);
+      setV(loadLabelSettings());
     }
   }, [open]);
 
@@ -32,12 +31,12 @@ export default function LabelLayoutDialog({ open, onClose }: Props) {
               Oben (mm)
               <input
                 type="number"
-                value={v.pageMargin.top}
+                value={v.page.top}
                 onChange={e =>
                   setV({
                     ...v,
-                    pageMargin: {
-                      ...v.pageMargin,
+                    page: {
+                      ...v.page,
                       top: parseFloat(e.target.value.replace(',', '.')),
                     },
                   })
@@ -48,12 +47,12 @@ export default function LabelLayoutDialog({ open, onClose }: Props) {
               Unten (mm)
               <input
                 type="number"
-                value={v.pageMargin.bottom}
+                value={v.page.bottom}
                 onChange={e =>
                   setV({
                     ...v,
-                    pageMargin: {
-                      ...v.pageMargin,
+                    page: {
+                      ...v.page,
                       bottom: parseFloat(e.target.value.replace(',', '.')),
                     },
                   })
@@ -64,12 +63,12 @@ export default function LabelLayoutDialog({ open, onClose }: Props) {
               Links (mm)
               <input
                 type="number"
-                value={v.pageMargin.left}
+                value={v.page.left}
                 onChange={e =>
                   setV({
                     ...v,
-                    pageMargin: {
-                      ...v.pageMargin,
+                    page: {
+                      ...v.page,
                       left: parseFloat(e.target.value.replace(',', '.')),
                     },
                   })
@@ -80,12 +79,12 @@ export default function LabelLayoutDialog({ open, onClose }: Props) {
               Rechts (mm)
               <input
                 type="number"
-                value={v.pageMargin.right}
+                value={v.page.right}
                 onChange={e =>
                   setV({
                     ...v,
-                    pageMargin: {
-                      ...v.pageMargin,
+                    page: {
+                      ...v.page,
                       right: parseFloat(e.target.value.replace(',', '.')),
                     },
                   })
@@ -100,13 +99,13 @@ export default function LabelLayoutDialog({ open, onClose }: Props) {
               Horizontal (mm)
               <input
                 type="number"
-                value={v.spacing.horizontal}
+                value={v.gap.col}
                 onChange={e =>
                   setV({
                     ...v,
-                    spacing: {
-                      ...v.spacing,
-                      horizontal: parseFloat(e.target.value.replace(',', '.')),
+                    gap: {
+                      ...v.gap,
+                      col: parseFloat(e.target.value.replace(',', '.')),
                     },
                   })
                 }
@@ -116,13 +115,13 @@ export default function LabelLayoutDialog({ open, onClose }: Props) {
               Vertikal (mm)
               <input
                 type="number"
-                value={v.spacing.vertical}
+                value={v.gap.row}
                 onChange={e =>
                   setV({
                     ...v,
-                    spacing: {
-                      ...v.spacing,
-                      vertical: parseFloat(e.target.value.replace(',', '.')),
+                    gap: {
+                      ...v.gap,
+                      row: parseFloat(e.target.value.replace(',', '.')),
                     },
                   })
                 }
@@ -134,61 +133,30 @@ export default function LabelLayoutDialog({ open, onClose }: Props) {
             <legend>Etikettengröße</legend>
             <label>
               Breite (mm)
-              <div className="row">
-                <input
-                  type="number"
-                  value={v.labelSize.width}
-                  onChange={e =>
-                    setV({
-                      ...v,
-                      labelSize: {
-                        ...v.labelSize,
-                        width: parseFloat(e.target.value.replace(',', '.')),
-                      },
-                    })
-                  }
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const maxW = maxLabelWidthMm(
-                      v.grid.columns,
-                      v.spacing.horizontal,
-                      v.pageMargin.left,
-                      v.pageMargin.right,
-                    );
-                    setV(prev => ({
-                      ...prev!,
-                      labelSize: {
-                        ...prev!.labelSize,
-                        width: Math.floor(maxW),
-                      },
-                    }));
-                  }}
-                >
-                  Auto
-                </button>
-              </div>
-              <small>
-                Max: {maxLabelWidthMm(
-                  v.grid.columns,
-                  v.spacing.horizontal,
-                  v.pageMargin.left,
-                  v.pageMargin.right,
-                ).toFixed(2)}{' '}
-                mm
-              </small>
+              <input
+                type="number"
+                value={v.label.width}
+                onChange={e =>
+                  setV({
+                    ...v,
+                    label: {
+                      ...v.label,
+                      width: parseFloat(e.target.value.replace(',', '.')),
+                    },
+                  })
+                }
+              />
             </label>
             <label>
               Höhe (mm)
               <input
                 type="number"
-                value={v.labelSize.height}
+                value={v.label.height}
                 onChange={e =>
                   setV({
                     ...v,
-                    labelSize: {
-                      ...v.labelSize,
+                    label: {
+                      ...v.label,
                       height: parseFloat(e.target.value.replace(',', '.')),
                     },
                   })
@@ -203,9 +171,9 @@ export default function LabelLayoutDialog({ open, onClose }: Props) {
               Spalten
               <input
                 type="number"
-                value={v.grid.columns}
+                value={v.grid.cols}
                 onChange={e =>
-                  setV({ ...v, grid: { ...v.grid, columns: parseFloat(e.target.value.replace(',', '.')) } })
+                  setV({ ...v, grid: { ...v.grid, cols: parseFloat(e.target.value.replace(',', '.')) } })
                 }
               />
             </label>
@@ -227,11 +195,11 @@ export default function LabelLayoutDialog({ open, onClose }: Props) {
               Höhe (mm)
               <input
                 type="number"
-                value={v.barcodeHeightMM ?? 18}
+                value={v.barcode.height}
                 onChange={e =>
                   setV({
                     ...v,
-                    barcodeHeightMM: parseFloat(e.target.value.replace(',', '.')),
+                    barcode: { height: parseFloat(e.target.value.replace(',', '.')) },
                   })
                 }
               />
@@ -243,32 +211,15 @@ export default function LabelLayoutDialog({ open, onClose }: Props) {
           <button onClick={onClose}>Abbrechen</button>
           <button
             className="primary"
-            onClick={async () => {
+            onClick={() => {
               if (!v) return;
-              const sanitized = sanitizeLayout(v);
-              const maxW = maxLabelWidthMm(
-                sanitized.grid.columns,
-                sanitized.spacing.horizontal,
-                sanitized.pageMargin.left,
-                sanitized.pageMargin.right,
-              );
-              if (sanitized.labelSize.width > maxW) {
-                alert(
-                  `Breite überschreitet A4.\nMaximal möglich: ${maxW.toFixed(2)} mm\n(bei ${sanitized.grid.columns} Spalten, horizontalem Abstand ${sanitized.spacing.horizontal} mm, Rändern L/R ${sanitized.pageMargin.left}/${sanitized.pageMargin.right} mm)`,
-                );
-                return;
-              }
-              const err = validateLayout(sanitized);
+              const err = validateA4(v);
               if (err) {
                 alert(err);
                 return;
               }
-              await window.api.settings.set('pageMargin', sanitized.pageMargin);
-              await window.api.settings.set('spacing', sanitized.spacing);
-              await window.api.settings.set('labelSize', sanitized.labelSize);
-              await window.api.settings.set('grid', sanitized.grid);
-              await window.api.settings.set('barcodeHeightMM', sanitized.barcodeHeightMM);
-              await applyLayoutCssVariables(sanitized);
+              saveLabelSettings(v);
+              applyCssVars(v);
               onClose();
             }}
           >

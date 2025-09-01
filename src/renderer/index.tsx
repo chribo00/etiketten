@@ -2,7 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import './styles/global.css';
-import { applyLayoutCssVariables } from './lib/labelLayoutStore';
+import { loadLabelSettings, applyCssVars } from './labels/formatSettings';
 
 const container = document.getElementById('root');
 if (container) {
@@ -10,4 +10,4 @@ if (container) {
   root.render(<App />);
 }
 
-void applyLayoutCssVariables();
+applyCssVars(loadLabelSettings());
