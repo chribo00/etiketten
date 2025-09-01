@@ -8,6 +8,16 @@ export const defaultLayout: LayoutSettings = {
   barcodeHeightMM: 18,
 };
 
+const PAGE_W = 210; // A4 portrait
+export function maxLabelWidthMm(
+  cols: number,
+  gapH: number,
+  mLeft: number,
+  mRight: number,
+): number {
+  return (PAGE_W - (mLeft + mRight) - (cols - 1) * gapH) / cols;
+}
+
 function num(val: any, min: number, max: number): number {
   const n = parseFloat(String(val).replace(',', '.'));
   if (isNaN(n)) return min;
@@ -43,11 +53,17 @@ export function sanitizeLayout(input: any): LayoutSettings {
 }
 
 export function validateLayout(l: LayoutSettings): string | null {
-  const totalW = l.grid.columns * l.labelSize.width +
-    (l.grid.columns - 1) * l.spacing.horizontal +
-    l.pageMargin.left + l.pageMargin.right;
-  if (totalW > 210) return 'Breite überschreitet A4';
-  const totalH = l.grid.rows * l.labelSize.height +
+  const maxW = maxLabelWidthMm(
+    l.grid.columns,
+    l.spacing.horizontal,
+    l.pageMargin.left,
+    l.pageMargin.right,
+  );
+  if (l.labelSize.width > maxW) {
+    return `Breite überschreitet A4.\nMaximal möglich: ${maxW.toFixed(2)} mm\n(bei ${l.grid.columns} Spalten, horizontalem Abstand ${l.spacing.horizontal} mm, Rändern L/R ${l.pageMargin.left}/${l.pageMargin.right} mm)`;
+  }
+  const totalH =
+    l.grid.rows * l.labelSize.height +
     (l.grid.rows - 1) * l.spacing.vertical +
     l.pageMargin.top + l.pageMargin.bottom;
   if (totalH > 297) return 'Höhe überschreitet A4';

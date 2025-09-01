@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { loadLayout, applyLayoutCssVariables, sanitizeLayout, validateLayout } from '../lib/labelLayoutStore';
+import {
+  loadLayout,
+  applyLayoutCssVariables,
+  sanitizeLayout,
+  validateLayout,
+  maxLabelWidthMm,
+} from '../lib/labelLayoutStore';
 import type { LayoutSettings } from '../../shared/layout';
 
 type Props = { open: boolean; onClose: () => void };
@@ -128,19 +134,50 @@ export default function LabelLayoutDialog({ open, onClose }: Props) {
             <legend>Etikettengröße</legend>
             <label>
               Breite (mm)
-              <input
-                type="number"
-                value={v.labelSize.width}
-                onChange={e =>
-                  setV({
-                    ...v,
-                    labelSize: {
-                      ...v.labelSize,
-                      width: parseFloat(e.target.value.replace(',', '.')),
-                    },
-                  })
-                }
-              />
+              <div className="row">
+                <input
+                  type="number"
+                  value={v.labelSize.width}
+                  onChange={e =>
+                    setV({
+                      ...v,
+                      labelSize: {
+                        ...v.labelSize,
+                        width: parseFloat(e.target.value.replace(',', '.')),
+                      },
+                    })
+                  }
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const maxW = maxLabelWidthMm(
+                      v.grid.columns,
+                      v.spacing.horizontal,
+                      v.pageMargin.left,
+                      v.pageMargin.right,
+                    );
+                    setV(prev => ({
+                      ...prev!,
+                      labelSize: {
+                        ...prev!.labelSize,
+                        width: Math.floor(maxW),
+                      },
+                    }));
+                  }}
+                >
+                  Auto
+                </button>
+              </div>
+              <small>
+                Max: {maxLabelWidthMm(
+                  v.grid.columns,
+                  v.spacing.horizontal,
+                  v.pageMargin.left,
+                  v.pageMargin.right,
+                ).toFixed(2)}{' '}
+                mm
+              </small>
             </label>
             <label>
               Höhe (mm)
@@ -209,6 +246,18 @@ export default function LabelLayoutDialog({ open, onClose }: Props) {
             onClick={async () => {
               if (!v) return;
               const sanitized = sanitizeLayout(v);
+              const maxW = maxLabelWidthMm(
+                sanitized.grid.columns,
+                sanitized.spacing.horizontal,
+                sanitized.pageMargin.left,
+                sanitized.pageMargin.right,
+              );
+              if (sanitized.labelSize.width > maxW) {
+                alert(
+                  `Breite überschreitet A4.\nMaximal möglich: ${maxW.toFixed(2)} mm\n(bei ${sanitized.grid.columns} Spalten, horizontalem Abstand ${sanitized.spacing.horizontal} mm, Rändern L/R ${sanitized.pageMargin.left}/${sanitized.pageMargin.right} mm)`,
+                );
+                return;
+              }
               const err = validateLayout(sanitized);
               if (err) {
                 alert(err);
