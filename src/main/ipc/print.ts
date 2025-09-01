@@ -28,6 +28,7 @@ ipcMain.handle('print:labelsToPDF', async (_e, payload: PrintPayload) => {
 
     const pdfBuffer = await win.webContents.printToPDF({
       pageSize,
+      marginsType: 0,
       printBackground: true,
     } as any);
 

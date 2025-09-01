@@ -1,19 +1,14 @@
 import Store from 'electron-store';
+import type { LayoutSettings } from '../shared/layout';
 
-export type SettingsSchema = {
-  pageMargin: { top: number; right: number; bottom: number; left: number };
-  labelSize: { width: number; height: number };
-  spacing: { horizontal: number; vertical: number };
-  columns: number;
-  rows: number;
-};
+export type SettingsSchema = LayoutSettings;
 
 const defaults: SettingsSchema = {
   pageMargin: { top: 8, right: 8, bottom: 8, left: 8 },
   labelSize: { width: 70, height: 37 },
   spacing: { horizontal: 4, vertical: 8 },
-  columns: 3,
-  rows: 8,
+  grid: { columns: 3, rows: 8 },
+  barcodeHeightMM: 18,
 };
 
 let store: Store<SettingsSchema>;
