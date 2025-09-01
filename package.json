@@ -42,7 +42,9 @@
     "iconv-lite": "^0.6.3",
     "zod": "^3.22.0",
     "jsbarcode": "^3.11.5",
-    "jspdf": "^2.5.1"
+    "jspdf": "^2.5.1",
+    "papaparse": "^5.4.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "typescript": "^5.0.0",

@@ -154,6 +154,23 @@ export default function LabelLayoutDialog({ open, onClose }: Props) {
               />
             </label>
           </fieldset>
+
+          <fieldset>
+            <legend>Barcode</legend>
+            <label>
+              Höhe (mm)
+              <input
+                type="number"
+                value={v.barcodeHeightMM ?? 18}
+                onChange={e =>
+                  setV({
+                    ...v,
+                    barcodeHeightMM: +e.target.value,
+                  })
+                }
+              />
+            </label>
+          </fieldset>
         </div>
 
         <div className="modal-actions">

@@ -4,6 +4,7 @@ export type Layout = {
   spacing: { horizontal: number; vertical: number };
   columns: number;
   rows: number;
+  barcodeHeightMM?: number;
 };
 
 export const defaultLayout: Layout = {
@@ -12,6 +13,7 @@ export const defaultLayout: Layout = {
   spacing: { horizontal: 4, vertical: 8 },
   columns: 3,
   rows: 8,
+  barcodeHeightMM: 18,
 };
 
 async function ensureLayout(): Promise<Layout> {
@@ -22,6 +24,7 @@ async function ensureLayout(): Promise<Layout> {
     spacing: { ...defaultLayout.spacing, ...(data.spacing as any) },
     columns: (data.columns as number) ?? defaultLayout.columns,
     rows: (data.rows as number) ?? defaultLayout.rows,
+    barcodeHeightMM: (data.barcodeHeightMM as number) ?? defaultLayout.barcodeHeightMM,
   };
 }
 
@@ -52,4 +55,7 @@ export async function applyLayoutCssVariables(layout?: Layout): Promise<void> {
   r.style.setProperty('--spacing-vertical-mm', `${s.spacing.vertical}mm`);
   r.style.setProperty('--label-columns', String(s.columns));
   r.style.setProperty('--label-rows', String(s.rows));
+  if (s.barcodeHeightMM != null) {
+    r.style.setProperty('--barcode-height-mm', `${s.barcodeHeightMM}mm`);
+  }
 }

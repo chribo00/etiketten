@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron';
-import { searchArticles } from '../db';
+import { searchArticles, upsertArticles } from '../db';
 import { IPC_CHANNELS, SearchPayloadSchema, SearchResultSchema } from '../../shared/ipc';
 
 export function registerArticlesHandlers() {
@@ -11,5 +11,9 @@ export function registerArticlesHandlers() {
       offset: page * pageSize,
     });
     return SearchResultSchema.parse({ items, total });
+  });
+
+  ipcMain.handle('articles:upsertMany', (_e, items) => {
+    return upsertArticles(items || []);
   });
 }

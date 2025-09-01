@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Input, Checkbox } from '@fluentui/react-components';
 import CategoryManager from './CategoryManager';
+import ImportWizard from './ImportWizard';
 import { z } from 'zod';
 import { generateLabelsPdf } from '../lib/labelsPdf';
 import type { LabelConfig } from '../lib/labels';
@@ -30,6 +31,7 @@ const ArticleSearch: React.FC = () => {
     const [searchCategory, setSearchCategory] = useState<number | undefined>();
     const [newCategoryId, setNewCategoryId] = useState<number | undefined>();
     const [catManagerOpen, setCatManagerOpen] = useState(false);
+    const [importOpen, setImportOpen] = useState(false);
 
     const templates: Record<string, Partial<LabelConfig>> = {
       'a4-3x8': {},
@@ -629,6 +631,9 @@ const ArticleSearch: React.FC = () => {
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <Button onClick={onPdf}>PDF-Etiketten erzeugen</Button>
                   <Button onClick={() => setCart([])}>Warenkorb leeren</Button>
+                  <Button onClick={() => setImportOpen(true)}>
+                    Importieren (CSV/XLSX/TXT)
+                  </Button>
                 </div>
               </div>
             )}
@@ -641,6 +646,7 @@ const ArticleSearch: React.FC = () => {
           onClose={() => setCatManagerOpen(false)}
         />
       )}
+      {importOpen && <ImportWizard open={importOpen} onClose={() => setImportOpen(false)} />}
     </>
   );
 };
