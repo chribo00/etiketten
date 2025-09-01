@@ -10,4 +10,4 @@ if (container) {
   root.render(<App />);
 }
 
-applyLayoutCssVariables();
+void applyLayoutCssVariables();

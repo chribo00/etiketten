@@ -12,5 +12,11 @@
     "sourceMap": true,
     "types": ["node", "jest"]
   },
-    "include": ["src/main/**/*.ts", "src/preload.ts", "src/renderer/**/*.d.ts", "src/types/**/*.d.ts"]
-  }
+  "include": [
+    "src/main/**/*.ts",
+    "src/preload.ts",
+    "src/renderer/**/*.d.ts",
+    "src/renderer/types/**/*.d.ts",
+    "src/types/**/*.d.ts"
+  ]
+}

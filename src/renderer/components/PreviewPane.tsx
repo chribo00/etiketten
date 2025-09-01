@@ -12,7 +12,7 @@ interface Props {
 const PreviewPane: React.FC<Props> = ({ opts }) => {
   const [open, setOpen] = useState(false);
   useEffect(() => {
-    applyLayoutCssVariables();
+    void applyLayoutCssVariables();
   }, []);
   const generate = async () => {
     const cart = (await window.bridge?.cart?.get?.()) || [];
