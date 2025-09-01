@@ -4,6 +4,9 @@ import {
   saveLabelSettings,
   validateA4,
   applyCssVars,
+  maxLabelWidthMm,
+  maxLabelHeightMm,
+  normalizeForAuto,
 } from '../labels/formatSettings';
 import type { LabelSettings } from '../labels/formatSettings';
 
@@ -131,38 +134,72 @@ export default function LabelLayoutDialog({ open, onClose }: Props) {
 
           <fieldset>
             <legend>Etikettengröße</legend>
-            <label>
-              Breite (mm)
-              <input
-                type="number"
-                value={v.label.width}
-                onChange={e =>
-                  setV({
-                    ...v,
-                    label: {
-                      ...v.label,
-                      width: parseFloat(e.target.value.replace(',', '.')),
-                    },
-                  })
-                }
-              />
-            </label>
-            <label>
-              Höhe (mm)
-              <input
-                type="number"
-                value={v.label.height}
-                onChange={e =>
-                  setV({
-                    ...v,
-                    label: {
-                      ...v.label,
-                      height: parseFloat(e.target.value.replace(',', '.')),
-                    },
-                  })
-                }
-              />
-            </label>
+            <div>
+              <label>
+                Breite (mm)
+                <input
+                  type="number"
+                  disabled={v.label.autoWidth}
+                  value={v.label.width}
+                  onChange={e =>
+                    setV({
+                      ...v,
+                      label: {
+                        ...v.label,
+                        width: parseFloat(e.target.value.replace(',', '.')),
+                      },
+                    })
+                  }
+                />
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={v.label.autoWidth ?? false}
+                  onChange={e =>
+                    setV({
+                      ...v,
+                      label: { ...v.label, autoWidth: e.target.checked },
+                    })
+                  }
+                />
+                Auto
+              </label>
+              <div>Max: {maxLabelWidthMm(v).toFixed(2)} mm</div>
+            </div>
+            <div>
+              <label>
+                Höhe (mm)
+                <input
+                  type="number"
+                  disabled={v.label.autoHeight}
+                  value={v.label.height}
+                  onChange={e =>
+                    setV({
+                      ...v,
+                      label: {
+                        ...v.label,
+                        height: parseFloat(e.target.value.replace(',', '.')),
+                      },
+                    })
+                  }
+                />
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={v.label.autoHeight ?? false}
+                  onChange={e =>
+                    setV({
+                      ...v,
+                      label: { ...v.label, autoHeight: e.target.checked },
+                    })
+                  }
+                />
+                Auto
+              </label>
+              <div>Max: {maxLabelHeightMm(v).toFixed(2)} mm</div>
+            </div>
           </fieldset>
 
           <fieldset>
@@ -213,13 +250,15 @@ export default function LabelLayoutDialog({ open, onClose }: Props) {
             className="primary"
             onClick={() => {
               if (!v) return;
-              const err = validateA4(v);
+              const s: LabelSettings = JSON.parse(JSON.stringify(v));
+              normalizeForAuto(s);
+              const err = validateA4(s);
               if (err) {
                 alert(err);
                 return;
               }
-              saveLabelSettings(v);
-              applyCssVars(v);
+              saveLabelSettings(s);
+              applyCssVars(s);
               onClose();
             }}
           >

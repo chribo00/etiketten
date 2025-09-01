@@ -1,7 +1,7 @@
 export type LabelSettings = {
   page: { top: number; right: number; bottom: number; left: number }; // mm
   gap: { col: number; row: number }; // mm
-  label: { width: number; height: number }; // mm
+  label: { width: number; height: number; autoWidth?: boolean; autoHeight?: boolean }; // mm
   grid: { cols: number; rows: number };
   barcode: { height: number }; // mm
 };
@@ -23,6 +23,21 @@ export function loadLabelSettings(): LabelSettings {
 
 export function saveLabelSettings(s: LabelSettings) {
   localStorage.setItem(KEY, JSON.stringify(s));
+}
+
+export function maxLabelWidthMm(s: LabelSettings) {
+  const A4W = 210;
+  return (A4W - s.page.left - s.page.right - (s.grid.cols - 1) * s.gap.col) / s.grid.cols;
+}
+
+export function maxLabelHeightMm(s: LabelSettings) {
+  const A4H = 297;
+  return (A4H - s.page.top - s.page.bottom - (s.grid.rows - 1) * s.gap.row) / s.grid.rows;
+}
+
+export function normalizeForAuto(s: LabelSettings) {
+  if (s.label.autoWidth) s.label.width = Math.floor(maxLabelWidthMm(s) * 100) / 100;
+  if (s.label.autoHeight) s.label.height = Math.floor(maxLabelHeightMm(s) * 100) / 100;
 }
 
 export function validateA4(s: LabelSettings): string | null {
