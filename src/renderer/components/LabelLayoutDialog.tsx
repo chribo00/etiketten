@@ -1,20 +1,18 @@
-import React, { useState } from 'react';
-import {
-  getLabelLayout,
-  setLabelLayout,
-  LabelLayoutSettings,
-} from '../lib/labelLayoutStore';
+import React, { useEffect, useState } from 'react';
+import { loadLayout, saveLayout, Layout } from '../lib/labelLayoutStore';
 
 type Props = { open: boolean; onClose: () => void };
 
 export default function LabelLayoutDialog({ open, onClose }: Props) {
-  const [v, setV] = useState<LabelLayoutSettings>(getLabelLayout());
-  if (!open) return null;
+  const [v, setV] = useState<Layout | null>(null);
 
-  const update = <K extends keyof LabelLayoutSettings>(
-    key: K,
-    value: LabelLayoutSettings[K],
-  ) => setV({ ...v, [key]: value });
+  useEffect(() => {
+    if (open) {
+      loadLayout().then(setV);
+    }
+  }, [open]);
+
+  if (!open || !v) return null;
 
   return (
     <div className="modal-backdrop">
@@ -29,7 +27,10 @@ export default function LabelLayoutDialog({ open, onClose }: Props) {
                 type="number"
                 value={v.pageMargin.top}
                 onChange={e =>
-                  update('pageMargin', { ...v.pageMargin, top: +e.target.value })
+                  setV({
+                    ...v,
+                    pageMargin: { ...v.pageMargin, top: +e.target.value },
+                  })
                 }
               />
             </label>
@@ -39,9 +40,9 @@ export default function LabelLayoutDialog({ open, onClose }: Props) {
                 type="number"
                 value={v.pageMargin.bottom}
                 onChange={e =>
-                  update('pageMargin', {
-                    ...v.pageMargin,
-                    bottom: +e.target.value,
+                  setV({
+                    ...v,
+                    pageMargin: { ...v.pageMargin, bottom: +e.target.value },
                   })
                 }
               />
@@ -52,7 +53,10 @@ export default function LabelLayoutDialog({ open, onClose }: Props) {
                 type="number"
                 value={v.pageMargin.left}
                 onChange={e =>
-                  update('pageMargin', { ...v.pageMargin, left: +e.target.value })
+                  setV({
+                    ...v,
+                    pageMargin: { ...v.pageMargin, left: +e.target.value },
+                  })
                 }
               />
             </label>
@@ -62,7 +66,10 @@ export default function LabelLayoutDialog({ open, onClose }: Props) {
                 type="number"
                 value={v.pageMargin.right}
                 onChange={e =>
-                  update('pageMargin', { ...v.pageMargin, right: +e.target.value })
+                  setV({
+                    ...v,
+                    pageMargin: { ...v.pageMargin, right: +e.target.value },
+                  })
                 }
               />
             </label>
@@ -74,35 +81,77 @@ export default function LabelLayoutDialog({ open, onClose }: Props) {
               Horizontal (mm)
               <input
                 type="number"
-                value={v.gap.col}
-                onChange={e => update('gap', { ...v.gap, col: +e.target.value })}
+                value={v.spacing.horizontal}
+                onChange={e =>
+                  setV({
+                    ...v,
+                    spacing: { ...v.spacing, horizontal: +e.target.value },
+                  })
+                }
               />
             </label>
             <label>
               Vertikal (mm)
               <input
                 type="number"
-                value={v.gap.row}
-                onChange={e => update('gap', { ...v.gap, row: +e.target.value })}
+                value={v.spacing.vertical}
+                onChange={e =>
+                  setV({
+                    ...v,
+                    spacing: { ...v.spacing, vertical: +e.target.value },
+                  })
+                }
+              />
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Etikettengröße</legend>
+            <label>
+              Breite (mm)
+              <input
+                type="number"
+                value={v.labelSize.width}
+                onChange={e =>
+                  setV({
+                    ...v,
+                    labelSize: { ...v.labelSize, width: +e.target.value },
+                  })
+                }
               />
             </label>
             <label>
-              Footer-Abstand oben (mm)
+              Höhe (mm)
               <input
                 type="number"
-                value={v.footerMarginTop}
-                onChange={e => update('footerMarginTop', +e.target.value as any)}
-              />
-            </label>
-            <label className="chk">
-              <input
-                type="checkbox"
-                checked={v.hideArticleNumberBelowBarcode}
+                value={v.labelSize.height}
                 onChange={e =>
-                  update('hideArticleNumberBelowBarcode', e.target.checked)
+                  setV({
+                    ...v,
+                    labelSize: { ...v.labelSize, height: +e.target.value },
+                  })
                 }
               />
-              Artikelnummer unter Barcode ausblenden
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Gitter</legend>
+            <label>
+              Spalten
+              <input
+                type="number"
+                value={v.columns}
+                onChange={e => setV({ ...v, columns: +e.target.value })}
+              />
+            </label>
+            <label>
+              Zeilen
+              <input
+                type="number"
+                value={v.rows}
+                onChange={e => setV({ ...v, rows: +e.target.value })}
+              />
             </label>
           </fieldset>
         </div>
@@ -111,8 +160,8 @@ export default function LabelLayoutDialog({ open, onClose }: Props) {
           <button onClick={onClose}>Abbrechen</button>
           <button
             className="primary"
-            onClick={() => {
-              setLabelLayout(v);
+            onClick={async () => {
+              await saveLayout(v);
               onClose();
             }}
           >

@@ -49,4 +49,20 @@ try {
   console.warn('exposeInMainWorld failed', err);
 }
 
+const api = {
+  settings: {
+    get: (key?: string) => ipcRenderer.invoke('settings:get', key),
+    set: (key: string, value: unknown) =>
+      ipcRenderer.invoke('settings:set', { key, value }),
+    getAll: () => ipcRenderer.invoke('settings:get'),
+    reset: () => ipcRenderer.invoke('settings:reset'),
+  },
+};
+
+try {
+  contextBridge.exposeInMainWorld('api', api);
+} catch (err) {
+  console.warn('exposeInMainWorld api failed', err);
+}
+
 export type Bridge = typeof bridge;

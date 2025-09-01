@@ -28,7 +28,9 @@ async function createWindow() {
 
 app.whenReady().then(async () => {
   const { registerIpcHandlers } = await import('./ipc/index');
+  const { registerSettingsHandlers } = await import('./ipc/settings');
   registerIpcHandlers();
+  registerSettingsHandlers();
   createWindow();
 });
 
