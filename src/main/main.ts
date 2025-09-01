@@ -1,5 +1,6 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'path';
+import './ipc/print';
 
 app.setName('Etiketten');
 const appData = app.getPath('appData');

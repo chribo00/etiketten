@@ -18,12 +18,14 @@ import { registerCartHandlers } from './cart';
 import { registerLabelsHandlers } from './labels';
 import { registerShellHandlers } from './shell';
 import { registerMediaHandlers } from './media';
+import { registerArticlesHandlers } from './articles';
 
 export function registerIpcHandlers() {
   registerCartHandlers();
   registerLabelsHandlers();
   registerShellHandlers();
   registerMediaHandlers();
+  registerArticlesHandlers();
 
   ipcMain.handle('datanorm:import', async (_e, { filePath, mapping, categoryId }) => {
     const res = await importDatanormFile({ filePath, mapping, categoryId });

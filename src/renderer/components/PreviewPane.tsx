@@ -3,7 +3,8 @@ import LabelPreview from './LabelPreview';
 import LabelLayoutDialog from './LabelLayoutDialog';
 import { Button } from '@fluentui/react-components';
 import type { LabelOptions } from './LabelOptionsPane';
-import { applyLayoutCssVariables } from '../lib/labelLayoutStore';
+import { applyLayoutCssVariables, loadLayout } from '../lib/labelLayoutStore';
+import { buildLabelSheetHTML } from '../print/LabelSheet';
 
 interface Props {
   opts: LabelOptions;
@@ -17,16 +18,25 @@ const PreviewPane: React.FC<Props> = ({ opts }) => {
   const generate = async () => {
     const cart = (await window.bridge?.cart?.get?.()) || [];
     if (!cart.length) return;
-    const res = await window.bridge?.labels?.generate?.();
-    if (!res) return;
-    alert(`PDF gespeichert unter ${res.pdfPath}`);
-    await window.bridge?.shell?.open?.(res.pdfPath);
+    const layout = await loadLayout();
+    const html = buildLabelSheetHTML({ items: cart, layout, barcodeHeightMM: layout.barcodeHeightMM ?? 18 });
+    const res = await window.api.print.labelsToPDF({
+      jobName: 'Etiketten',
+      html,
+      pageSize: 'A4',
+      marginsMM: layout.pageMargin,
+      saveDialog: true,
+      defaultPath: 'etiketten.pdf',
+    });
+    if (!res.ok) {
+      alert(`PDF-Fehler: ${res.error}`);
+    }
   };
   return (
     <div className="labels-page">
       <div className="toolbar">
         <button onClick={() => setOpen(true)}>Etiketten formatieren</button>
-        <Button onClick={generate}>PDF erzeugen</Button>
+        <Button onClick={generate}>Etiketten erzeugen</Button>
       </div>
       <div className="labels-grid">
         <LabelPreview opts={opts} />

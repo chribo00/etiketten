@@ -7,6 +7,7 @@ export const IPC_CHANNELS = {
   },
   articles: {
     search: 'ipc.articles.search',
+    upsertMany: 'articles:upsertMany',
   },
   cart: {
     get: 'ipc.cart.get',

@@ -57,6 +57,19 @@ const api = {
     getAll: () => ipcRenderer.invoke('settings:get'),
     reset: () => ipcRenderer.invoke('settings:reset'),
   },
+  print: {
+    labelsToPDF: (payload: {
+      jobName: string;
+      html: string;
+      pageSize?: 'A4' | 'Letter';
+      marginsMM: { top: number; right: number; bottom: number; left: number };
+      saveDialog?: boolean;
+      defaultPath?: string;
+    }) => ipcRenderer.invoke('print:labelsToPDF', payload),
+  },
+  articles: {
+    upsertMany: (items: any[]) => ipcRenderer.invoke('articles:upsertMany', items),
+  },
 };
 
 try {
