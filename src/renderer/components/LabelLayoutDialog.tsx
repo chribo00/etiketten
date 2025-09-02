@@ -6,7 +6,8 @@ import {
   applyCssVars,
   maxLabelWidthMm,
   maxLabelHeightMm,
-  normalizeForAuto,
+  normalizeFromForm,
+  clampToPage,
 } from '../labels/formatSettings';
 import type { LabelSettings } from '../labels/formatSettings';
 
@@ -14,6 +15,8 @@ type Props = { open: boolean; onClose: () => void };
 
 export default function LabelLayoutDialog({ open, onClose }: Props) {
   const [v, setV] = useState<LabelSettings | null>(null);
+
+  const toast = { info: (msg: string) => console.info(msg) };
 
   useEffect(() => {
     if (open) {
@@ -251,14 +254,28 @@ export default function LabelLayoutDialog({ open, onClose }: Props) {
             onClick={() => {
               if (!v) return;
               const s: LabelSettings = JSON.parse(JSON.stringify(v));
-              normalizeForAuto(s);
+              normalizeFromForm(s);
+              if (s.label.autoWidth) s.label.width = maxLabelWidthMm(s);
+              if (s.label.autoHeight) s.label.height = maxLabelHeightMm(s);
+
+              const clamp = clampToPage(s);
               const err = validateA4(s);
               if (err) {
                 alert(err);
                 return;
               }
+
               saveLabelSettings(s);
               applyCssVars(s);
+
+              if (clamp.clampedW || clamp.clampedH) {
+                toast.info(
+                  `Werte angepasst: ` +
+                    (clamp.clampedW ? `Breite → ${clamp.clampedW}mm ` : '') +
+                    (clamp.clampedH ? `Höhe → ${clamp.clampedH}mm` : '')
+                );
+              }
+
               onClose();
             }}
           >
