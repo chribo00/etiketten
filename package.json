@@ -1,6 +1,8 @@
 {
   "name": "etiketten",
   "version": "0.1.0",
+  "description": "Etikettenerstellungs-Software",
+  "author": "ETU GmbH",
   "private": true,
   "main": "build/main.js",
   "scripts": {
@@ -20,7 +22,7 @@
     "rebuild:node": "npm rebuild better-sqlite3 --build-from-source",
     "rebuild:electron": "electron-rebuild -f -w better-sqlite3",
     "rebuild:all": "npm run rebuild:node && npm run rebuild:electron",
-    "postinstall": "npm run rebuild:electron",
+    "postinstall": "electron-builder install-app-deps",
     "pretest": "node -e \"process.exit(0)\"",
     "test": "ts-node -T scripts/run-tests-with-local-headers.ts",
     "test:unit": "ts-node -T scripts/run-tests-with-local-headers.ts",
@@ -28,7 +30,6 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "electron": "^30.0.0",
     "electron-updater": "^6.1.1",
     "electron-store": "^8.1.0",
     "react": "^18.0.0",
@@ -57,6 +58,7 @@
     "concurrently": "^8.0.0",
     "cross-env": "^7.0.0",
     "wait-on": "^7.0.0",
+    "electron": "^30.0.0",
     "electron-builder": "^24.0.0",
     "electron-rebuild": "^3.0.0",
     "@types/node": "^20.0.0",
