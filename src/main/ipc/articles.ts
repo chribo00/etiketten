@@ -28,8 +28,8 @@ export function registerArticlesHandlers() {
   ipcMain.handle('articles:upsertMany', (_e, items) => {
     try {
       const parsed = UpsertMany.parse(items);
-      const res = upsertArticles(parsed);
-      return { ok: true, ...res };
+      const result = upsertArticles(parsed);
+      return { ok: true, ...result };
     } catch (err: any) {
       console.error('articles:upsertMany failed', err);
       if (err instanceof z.ZodError) {
