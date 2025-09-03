@@ -38,6 +38,16 @@ const stmtUpdate = db.prepare(
    WHERE articleNumber=@articleNumber`,
 );
 
+const UPSERT_COLS = [
+  'articleNumber',
+  'ean',
+  'name',
+  'price',
+  'unit',
+  'productGroup',
+  'category_id',
+];
+
 function parsePrice(v: unknown): number {
   if (v == null) return 0;
   const n = Number(String(v).replace(',', '.'));
@@ -73,6 +83,9 @@ export function upsertArticles(batch: any[]) {
             ? Number(raw.category_id)
             : null,
       };
+      if (i === 0) {
+        console.debug('upsertArticles row0 mapped', { columns: UPSERT_COLS, values: item });
+      }
       try {
         const ins = stmtInsert.run(item);
         if (ins.changes === 0) {
@@ -90,6 +103,13 @@ export function upsertArticles(batch: any[]) {
       } catch (e: any) {
         e.row = i;
         e.articleNumber = item.articleNumber;
+        if (i === 0) {
+          console.error('upsertArticles row0 failed', {
+            columns: UPSERT_COLS,
+            values: item,
+            message: e.message,
+          });
+        }
         throw e;
       }
     }

@@ -30,7 +30,14 @@ export const ImportWizard: React.FC<Props> = ({ open, onClose }) => {
 
   const startImport = async () => {
     setError(null);
-    const items = applyMapping({ rows, headers, mapping });
+    const { items, errors } = applyMapping({ rows, headers, mapping });
+    console.info(`importing ${items.length} rows`);
+    if (items[0]) console.info('sample row', { index: 0, articleNumber: items[0].articleNumber });
+    if (errors.length) {
+      const e = errors[0];
+      setError(`Fehler in Zeile ${e.row + 1}: Feld ${e.field}`);
+      return;
+    }
     if (!items.length) {
       setError('Keine gültigen Daten gefunden');
       return;
@@ -40,7 +47,9 @@ export const ImportWizard: React.FC<Props> = ({ open, onClose }) => {
       if (res?.ok) {
         onClose();
       } else {
-        setError(res?.message || 'Import fehlgeschlagen');
+        const rowInfo = (res as any)?.details;
+        const prefix = rowInfo ? `Zeile ${Number(rowInfo.row) + 1} (${rowInfo.articleNumber}): ` : '';
+        setError(prefix + (res?.message || 'Import fehlgeschlagen'));
       }
     } catch (err: any) {
       setError(String(err.message || err));

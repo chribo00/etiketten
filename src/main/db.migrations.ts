@@ -43,9 +43,9 @@ export function ensureSchema(db: DatabaseType) {
       SELECT id, CAST(articleNumber AS TEXT), ean, name, price, unit, productGroup, created_at, updated_at FROM _articles_old;
     `);
     db.exec(`DROP TABLE _articles_old;`);
-    db.exec(`CREATE INDEX IF NOT EXISTS idx_articles_articlenumber ON articles(articleNumber);`);
+    db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_articles_articlenumber ON articles(articleNumber);`);
     db.exec(`CREATE INDEX IF NOT EXISTS idx_articles_name ON articles(name);`);
-    db.exec(`CREATE INDEX IF NOT EXISTS idx_articles_ean ON articles(ean);`);
+    db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_articles_ean ON articles(ean);`);
   }
   if (!names.includes('ean')) {
     db.exec(`ALTER TABLE articles ADD COLUMN ean TEXT;`);
@@ -74,9 +74,9 @@ export function ensureSchema(db: DatabaseType) {
     db.exec(`ALTER TABLE articles ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP;`);
   }
 
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_articles_articlenumber ON articles(articleNumber);`);
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_articles_articlenumber ON articles(articleNumber);`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_articles_name ON articles(name);`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_articles_ean ON articles(ean);`);
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_articles_ean ON articles(ean);`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_articles_category_id ON articles(category_id);`);
 
   db.exec(`
