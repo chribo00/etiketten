@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import { app, BrowserWindow } from "electron";
 
@@ -9,17 +10,26 @@ app.setPath('userData', path.join(appData, 'Etiketten'));
 let mainWindow: BrowserWindow | null = null;
 
 function createMainWindow() {
-    mainWindow = new BrowserWindow({
-      width: 1280,
-      height: 800,
-      title: 'Etiketten',
-      show: false,
-      webPreferences: {
-        contextIsolation: true,
-        sandbox: false,
-        preload: path.join(__dirname, "build", "preload.js"), // Dev: gebündelte Datei
-      },
-    });
+  const isDev = !app.isPackaged;
+  const preloadPath = isDev
+    ? path.join(app.getAppPath(), "build", "preload.js")
+    : path.join(__dirname, "preload.js");
+  console.log("Loading preload script from", preloadPath);
+  if (!fs.existsSync(preloadPath)) {
+    console.warn("Preload script not found at", preloadPath);
+  }
+
+  mainWindow = new BrowserWindow({
+    width: 1280,
+    height: 800,
+    title: 'Etiketten',
+    show: false,
+    webPreferences: {
+      contextIsolation: true,
+      sandbox: false,
+      preload: preloadPath,
+    },
+  });
 
   mainWindow.webContents.on('will-navigate', (event, url) => {
     const isDev = !app.isPackaged;
