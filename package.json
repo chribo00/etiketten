@@ -2,7 +2,7 @@
   "name": "etiketten",
   "version": "0.1.0",
   "private": true,
-  "main": "src/main/main.ts",
+  "main": "build/main.js",
   "scripts": {
     "dev": "npm run build:preload && concurrently -k \"npm:dev:renderer\" \"npm:dev:main\"",
     "dev:renderer": "vite --config vite.config.mts",
