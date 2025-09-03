@@ -4,7 +4,7 @@ import ReactDOM from 'react-dom';
 import CartActions from '../src/renderer/components/CartActions';
 
 describe('CartActions Import Button', () => {
-  it('renders disabled import button when cart empty', () => {
+  it('enables import and disables clear button when cart empty', () => {
     const div = document.createElement('div');
     ReactDOM.render(
       <CartActions hasItems={false} onClear={() => {}} onImport={() => {}} />,
@@ -12,17 +12,23 @@ describe('CartActions Import Button', () => {
     );
     const buttons = div.querySelectorAll('button');
     expect(buttons.length).toBe(2);
+    const clearBtn = buttons[0] as HTMLButtonElement;
     const importBtn = buttons[1] as HTMLButtonElement;
-    expect(importBtn.disabled).toBe(true);
+    expect(clearBtn.disabled).toBe(true);
+    expect(importBtn.disabled).toBe(false);
   });
 
-  it('renders enabled import button when cart has items', () => {
+  it('enables both buttons when cart has items', () => {
     const div = document.createElement('div');
     ReactDOM.render(
       <CartActions hasItems={true} onClear={() => {}} onImport={() => {}} />,
       div,
     );
-    const importBtn = div.querySelectorAll('button')[1] as HTMLButtonElement;
+    const buttons = div.querySelectorAll('button');
+    expect(buttons.length).toBe(2);
+    const clearBtn = buttons[0] as HTMLButtonElement;
+    const importBtn = buttons[1] as HTMLButtonElement;
+    expect(clearBtn.disabled).toBe(false);
     expect(importBtn.disabled).toBe(false);
   });
 });

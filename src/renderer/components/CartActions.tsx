@@ -8,7 +8,7 @@ type Props = {
 };
 
 const CartActions: React.FC<Props> = ({ hasItems, onClear, onImport }) => {
-  const disabled = !hasItems;
+  const clearDisabled = !hasItems;
   return (
     <div
       style={{
@@ -19,21 +19,15 @@ const CartActions: React.FC<Props> = ({ hasItems, onClear, onImport }) => {
       }}
     >
       <div style={{ display: 'flex', gap: '8px' }}>
-        <Button onClick={onClear} disabled={disabled}>
+        <Button onClick={onClear} disabled={clearDisabled}>
           Warenkorb leeren
         </Button>
-        <Tooltip
-          content="Import erfordert mindestens 1 Artikel im Warenkorb."
-          relationship="label"
-          disabled={!disabled}
-        >
+        <Tooltip content="Dateien importieren (CSV/XLSX/TXT)" relationship="label">
           <span style={{ display: 'inline-flex' }}>
             <Button
               onClick={onImport}
-              disabled={disabled}
-              aria-disabled={disabled}
-              aria-label="Importieren (CSV/XLSX/TXT)"
-              title={disabled ? 'Import erfordert mindestens 1 Artikel im Warenkorb.' : undefined}
+              aria-label="Dateien importieren (CSV/XLSX/TXT)"
+              title="Dateien importieren (CSV/XLSX/TXT)"
             >
               Importieren (CSV/XLSX/TXT)
             </Button>
