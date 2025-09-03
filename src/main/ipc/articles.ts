@@ -25,7 +25,7 @@ export function registerArticlesHandlers() {
   });
   const UpsertMany = z.array(UpsertItem);
 
-  ipcMain.handle('articles:upsertMany', (_e, items) => {
+    ipcMain.handle(IPC_CHANNELS.articles.upsertMany, (_e, items) => {
     try {
       const parsed = UpsertMany.parse(items);
       const result = upsertArticles(parsed);
