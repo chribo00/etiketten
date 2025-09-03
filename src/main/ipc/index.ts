@@ -28,7 +28,7 @@ export function registerIpcHandlers() {
   registerMediaHandlers();
   registerArticlesHandlers();
 
-  ipcMain.handle('datanorm:import', async (_e, { filePath, mapping, categoryId }) => {
+  ipcMain.handle(IPC_CHANNELS.datanorm.import, async (_e, { filePath, mapping, categoryId }) => {
     const res = await importDatanormFile({ filePath, mapping, categoryId });
     console.log('Import result', res);
     return res;

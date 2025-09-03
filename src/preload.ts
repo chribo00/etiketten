@@ -20,8 +20,8 @@ const bridge = {
   ready: true,
   pickDatanormFile: () => ipcRenderer.invoke('dialog:pick-datanorm'),
   importDatanorm: (payload: DatanormImportPayload) =>
-    ipcRenderer.invoke('datanorm:import', payload),
-  searchArticles: (opts: any) => ipcRenderer.invoke('articles:search', opts),
+    ipcRenderer.invoke(IPC_CHANNELS.datanorm.import, payload),
+  searchArticles: (opts: any) => ipcRenderer.invoke(IPC_CHANNELS.articles.search, opts),
   searchAll: (opts: any) => ipcRenderer.invoke('articles:searchAll', opts),
   customCreate: (a: any) => ipcRenderer.invoke('custom:create', a),
   customUpdate: (id: number, patch: any) =>
@@ -41,9 +41,9 @@ const bridge = {
   },
   media: {
     addPrimary: (articleId: number, filePath: string, alt?: string) =>
-      ipcRenderer.invoke('media:addPrimary', { articleId, filePath, alt }),
-    list: (articleId: number) => ipcRenderer.invoke('media:list', { articleId }),
-    remove: (mediaId: number) => ipcRenderer.invoke('media:remove', { mediaId }),
+      ipcRenderer.invoke(IPC_CHANNELS.media.addPrimary, { articleId, filePath, alt }),
+    list: (articleId: number) => ipcRenderer.invoke(IPC_CHANNELS.media.list, { articleId }),
+    remove: (mediaId: number) => ipcRenderer.invoke(IPC_CHANNELS.media.remove, { mediaId }),
   },
   dbInfo: (): Promise<IpcResponse<{ path: string; rowCount: number }>> =>
     ipcRenderer.invoke(IPC_CHANNELS.db.info),
@@ -76,7 +76,7 @@ const api = {
   },
   articles: {
     upsertMany: (items: any[]) =>
-      ipcRenderer.invoke('articles:upsertMany', items) as Promise<
+      ipcRenderer.invoke(IPC_CHANNELS.articles.upsertMany, items) as Promise<
         | { ok: true; inserted: number; updated: number }
         | { ok: false; code?: string; message: string; details?: any }
       >,
