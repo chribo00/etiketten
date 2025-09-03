@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { parseFile } from '../lib/import/parsers';
-import { applyMapping, Mapping } from '../lib/import/applyMapping';
+import { applyMapping, type Mapping } from '../lib/import/applyMapping';
 
 const targetFields = [
   { key: 'artikelnummer', label: 'Artikelnummer', required: true },
@@ -85,7 +85,10 @@ export const ImportWizard: React.FC<Props> = ({ open, onClose }) => {
                       <select
                         value={mapping[tf.key] || ''}
                         onChange={(e) =>
-                          setMapping({ ...mapping, [tf.key]: e.target.value })
+                          setMapping((prev) => ({
+                            ...prev,
+                            [tf.key]: e.target.value,
+                          }))
                         }
                       >
                         <option value="">--</option>

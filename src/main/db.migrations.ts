@@ -7,7 +7,7 @@ export function ensureSchema(db: DatabaseType) {
   db.exec(`
   CREATE TABLE IF NOT EXISTS articles (
   id INTEGER PRIMARY KEY,
-  articleNumber TEXT UNIQUE,
+  articleNumber TEXT NOT NULL UNIQUE,
   ean TEXT,
   name TEXT NOT NULL DEFAULT '',
   price REAL DEFAULT 0,
@@ -27,7 +27,7 @@ export function ensureSchema(db: DatabaseType) {
     db.exec(`
       CREATE TABLE articles (
         id INTEGER PRIMARY KEY,
-        articleNumber TEXT UNIQUE,
+        articleNumber TEXT NOT NULL UNIQUE,
         ean TEXT,
         name TEXT NOT NULL DEFAULT '',
         price REAL DEFAULT 0,
@@ -39,13 +39,20 @@ export function ensureSchema(db: DatabaseType) {
       );
     `);
     db.exec(`
-      INSERT INTO articles (id, articleNumber, ean, name, price, unit, productGroup, created_at, updated_at)
-      SELECT id, CAST(articleNumber AS TEXT), ean, name, price, unit, productGroup, created_at, updated_at FROM _articles_old;
+      INSERT INTO articles (id, articleNumber, ean, name, price, unit, productGroup, category_id, created_at, updated_at)
+      SELECT id, CAST(articleNumber AS TEXT), ean, name, price, unit, productGroup, category_id, created_at, updated_at FROM _articles_old;
     `);
     db.exec(`DROP TABLE _articles_old;`);
     db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_articles_articlenumber ON articles(articleNumber);`);
     db.exec(`CREATE INDEX IF NOT EXISTS idx_articles_name ON articles(name);`);
     db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_articles_ean ON articles(ean);`);
+  }
+  const idxs = db.prepare(`PRAGMA index_list(articles)`).all() as any[];
+  const hasArticleNumberUnique = idxs.some(
+    (i) => i.name === 'idx_articles_articlenumber' && i.unique,
+  );
+  if (!hasArticleNumberUnique) {
+    db.exec(`CREATE UNIQUE INDEX idx_articles_articlenumber ON articles(articleNumber);`);
   }
   if (!names.includes('ean')) {
     db.exec(`ALTER TABLE articles ADD COLUMN ean TEXT;`);
@@ -74,7 +81,6 @@ export function ensureSchema(db: DatabaseType) {
     db.exec(`ALTER TABLE articles ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP;`);
   }
 
-  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_articles_articlenumber ON articles(articleNumber);`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_articles_name ON articles(name);`);
   db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_articles_ean ON articles(ean);`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_articles_category_id ON articles(category_id);`);
