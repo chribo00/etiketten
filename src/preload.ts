@@ -70,8 +70,8 @@ const api = {
   articles: {
     upsertMany: (items: any[]) =>
       ipcRenderer.invoke('articles:upsertMany', items) as Promise<
-        { ok: true; inserted: number; updated: number } |
-        { ok: false; code?: string; message: string }
+        | { ok: true; inserted: number; updated: number }
+        | { ok: false; code?: string; message: string; details?: any }
       >,
   },
 };
