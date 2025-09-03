@@ -1,5 +1,5 @@
-import { app, BrowserWindow } from 'electron';
-import path from 'path';
+import path from "node:path";
+import { app, BrowserWindow } from "electron";
 
 app.setName('Etiketten');
 app.setAppUserModelId('at.etu.etiketten');
@@ -9,18 +9,17 @@ app.setPath('userData', path.join(appData, 'Etiketten'));
 let mainWindow: BrowserWindow | null = null;
 
 function createMainWindow() {
-  mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
-    title: 'Etiketten',
-    show: false,
-    webPreferences: {
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
-      preload: path.join(__dirname, '..', 'preload.js'),
-    },
-  });
+    mainWindow = new BrowserWindow({
+      width: 1280,
+      height: 800,
+      title: 'Etiketten',
+      show: false,
+      webPreferences: {
+        contextIsolation: true,
+        sandbox: false,
+        preload: path.join(__dirname, "build", "preload.js"), // Dev: gebündelte Datei
+      },
+    });
 
   mainWindow.webContents.on('will-navigate', (event, url) => {
     const isDev = !app.isPackaged;
