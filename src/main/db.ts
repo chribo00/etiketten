@@ -1,9 +1,8 @@
-import Database from 'better-sqlite3';
-import type { Database as DatabaseType } from 'better-sqlite3';
-import { app } from 'electron';
-import fs from 'fs';
-import path from 'path';
-import { ensureSchema } from './db.migrations';
+import Database from "better-sqlite3";
+import { app } from "electron";
+import fs from "node:fs";
+import path from "node:path";
+import { ensureSchema } from "./db.migrations";
 import { parseSearch } from './search';
 
 const dataDir = path.join(app.getPath('userData'), 'data');
