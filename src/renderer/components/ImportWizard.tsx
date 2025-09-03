@@ -29,13 +29,22 @@ export const ImportWizard: React.FC<Props> = ({ open, onClose }) => {
   };
 
   const startImport = async () => {
+    setError(null);
     const items = applyMapping({ rows, headers, mapping });
     if (!items.length) {
       setError('Keine gültigen Daten gefunden');
       return;
     }
-    await window.api.articles.upsertMany(items as any);
-    onClose();
+    try {
+      const res = await window.api.articles.upsertMany(items as any);
+      if (res?.ok) {
+        onClose();
+      } else {
+        setError(res?.message || 'Import fehlgeschlagen');
+      }
+    } catch (err: any) {
+      setError(String(err.message || err));
+    }
   };
 
   if (!open) return null;

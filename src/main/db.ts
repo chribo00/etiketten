@@ -36,6 +36,8 @@ const stmtUpdate = db.prepare(
 );
 
 export function upsertArticles(batch: any[]) {
+  if (!batch.length) return { inserted: 0, updated: 0 };
+  console.info(`upsertArticles count=${batch.length}`); // debug info
   const tx = db.transaction((rows: any[]) => {
     let inserted = 0;
     let updated = 0;
@@ -63,7 +65,12 @@ export function upsertArticles(batch: any[]) {
     }
     return { inserted, updated };
   });
-  return tx(batch);
+  try {
+    return tx(batch);
+  } catch (err) {
+    console.error('upsertArticles failed', err);
+    throw err;
+  }
 }
 
 export function getDbInfo() {

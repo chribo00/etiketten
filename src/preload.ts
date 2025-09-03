@@ -68,7 +68,11 @@ const api = {
     }) => ipcRenderer.invoke('print:labelsToPDF', payload),
   },
   articles: {
-    upsertMany: (items: any[]) => ipcRenderer.invoke('articles:upsertMany', items),
+    upsertMany: (items: any[]) =>
+      ipcRenderer.invoke('articles:upsertMany', items) as Promise<
+        { ok: true; inserted: number; updated: number } |
+        { ok: false; code?: string; message: string }
+      >,
   },
 };
 

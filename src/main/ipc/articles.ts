@@ -1,4 +1,5 @@
 import { ipcMain } from 'electron';
+import { z } from 'zod';
 import { searchArticles, upsertArticles } from '../db';
 import { IPC_CHANNELS, SearchPayloadSchema, SearchResultSchema } from '../../shared/ipc';
 
@@ -13,7 +14,28 @@ export function registerArticlesHandlers() {
     return SearchResultSchema.parse({ items, total });
   });
 
+  const UpsertItem = z.object({
+    articleNumber: z.string().min(1),
+    ean: z.string().min(8).max(13).optional().nullable(),
+    name: z.string().min(1),
+    price: z.number().optional(),
+    unit: z.string().optional().nullable(),
+    productGroup: z.string().optional().nullable(),
+    category_id: z.number().int().optional().nullable(),
+  });
+  const UpsertMany = z.array(UpsertItem);
+
   ipcMain.handle('articles:upsertMany', (_e, items) => {
-    return upsertArticles(items || []);
+    try {
+      const parsed = UpsertMany.parse(items);
+      const res = upsertArticles(parsed);
+      return { ok: true, ...res };
+    } catch (err: any) {
+      console.error('articles:upsertMany failed', err);
+      if (err instanceof z.ZodError) {
+        return { ok: false, code: 'VALIDATION_ERROR', message: err.message, details: err.issues };
+      }
+      return { ok: false, code: 'DB_ERROR', message: String(err) };
+    }
   });
 }
