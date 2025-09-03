@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Button, Input, Checkbox } from '@fluentui/react-components';
 import CategoryManager from './CategoryManager';
 import ImportWizard from './ImportWizard';
+import CartActions from './CartActions';
 import { z } from 'zod';
 import { fromArticleToEan13, isValidEan13, onlyDigits } from '../lib/labels';
 
@@ -594,23 +595,11 @@ const ArticleSearch: React.FC<Props> = ({ onCartChange }) => {
                 </li>
               ))}
             </ul>
-            {cart.length > 0 && (
-              <div
-                style={{
-                  marginTop: '8px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                }}
-              >
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <Button onClick={() => setCart([])}>Warenkorb leeren</Button>
-                  <Button onClick={() => setImportOpen(true)}>
-                    Importieren (CSV/XLSX/TXT)
-                  </Button>
-                </div>
-              </div>
-            )}
+            <CartActions
+              hasItems={cart.length > 0}
+              onClear={() => setCart([])}
+              onImport={() => setImportOpen(true)}
+            />
           </div>
         </div>
       </div>

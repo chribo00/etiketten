@@ -3,7 +3,8 @@
   "compilerOptions": {
     "esModuleInterop": true,
     "moduleResolution": "node",
-    "types": ["jest", "node"]
+    "types": ["jest", "node"],
+    "jsx": "react-jsx"
   },
   "include": ["tests/**/*.ts", "tests/**/*.tsx", "types/**/*.d.ts"]
 }
