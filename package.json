@@ -7,11 +7,15 @@
     "dev": "npm run build:preload && concurrently -k \"npm:dev:renderer\" \"npm:dev:main\"",
     "dev:renderer": "vite --config vite.config.mts",
     "dev:main": "wait-on http://localhost:5173 && electron ./dev-main.cjs",
+    "build:main": "tsc -p tsconfig.main.json",
     "build:preload": "tsc src/preload.ts --outDir build --module commonjs --target ES2020 --esModuleInterop",
     "build:renderer": "vite build",
+    "build": "npm run build:main && npm run build:preload && npm run build:renderer",
     "start": "electron .",
     "pack": "electron-builder --dir",
-    "dist": "npm run build:renderer && electron-builder",
+    "dist": "npm run build && electron-builder --win nsis",
+    "dist:msi": "npm run build && electron-builder --win msi",
+    "dist:all": "npm run build && electron-builder --win nsis msi",
     "rebuild-native": "electron-rebuild -f -w better-sqlite3 -w sharp",
     "rebuild:node": "npm rebuild better-sqlite3 --build-from-source",
     "rebuild:electron": "electron-rebuild -f -w better-sqlite3",
@@ -67,27 +71,40 @@
     "@types/jest": "^29.5.12"
   },
   "build": {
-    "appId": "com.cloudia.etiketten",
-    "productName": "Etiketten",
+    "appId": "at.etu.etiketten",
+    "productName": "ETU Etiketten",
+    "directories": {
+      "output": "release"
+    },
     "files": [
-      "dist/**",
-      "src/main/**",
-      "build/**",
+      "build/**/*",
+      "dist/**/*",
+      "node_modules/**/*",
       "package.json"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "**/node_modules/**/build/**"
     ],
     "extraResources": [
       {
-        "from": "assets",
-        "to": "assets"
+        "from": "resources",
+        "to": "resources"
       }
     ],
+    "win": {
+      "icon": "build/icon.ico",
+      "artifactName": "ETU-Etiketten-${version}-Setup.${ext}",
+      "target": "nsis",
+      "certificateFile": "${WINDOWS_PFX_FILE}",
+      "certificatePassword": "${WINDOWS_PFX_PASSWORD}"
+    },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
-    },
-    "win": {
-      "target": "nsis",
-      "icon": "assets/icon.ico"
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "ETU Etiketten"
     }
   }
 }
