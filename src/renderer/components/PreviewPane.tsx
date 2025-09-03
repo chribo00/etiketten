@@ -47,38 +47,26 @@ function cssVarsStyleTag(s: LabelSettings) {
   }</style>`;
 }
 
-type Props = { opts: LabelOptions };
+type Props = { opts: LabelOptions; cart: any[] };
 
-const PreviewPane: React.FC<Props> = ({ opts }) => {
+const PreviewPane: React.FC<Props> = ({ opts, cart }) => {
   const [openLayout, setOpenLayout] = useState(false);
   const [settings, setSettings] = useState<LabelSettings>(() => loadLabelSettings());
 
-  useEffect(() => { applyCssVars(settings); }, [settings]);
-
-  const [cart, setCart] = useState<{ articleId: string; qty: number }[]>([]);
   useEffect(() => {
-    (async () => {
-      const c = (await window.bridge?.cart?.get?.()) || [];
-      setCart(c.map((x: any) => ({ articleId: x.articleId, qty: x.qty })));
-    })();
-  }, []);
-
-  async function getArticle(articleId: string) {
-    const a = await window.bridge?.articles?.getById?.(articleId);
-    return a || { articleNumber: articleId, name: articleId, price: undefined };
-  }
+    applyCssVars(settings);
+  }, [settings]);
 
   async function buildLabelsHtml(): Promise<string> {
     let labels = '';
     for (const item of cart) {
-      const art = await getArticle(item.articleId);
       for (let i = 0; i < item.qty; i++) {
         labels += `
           <div class="label">
-            ${opts.showArticleNumber && art.articleNumber ? `<div class="label__sku">${art.articleNumber}</div>` : ''}
-            ${opts.showShortText && art.name ? `<div class="label__title">${art.name}</div>` : ''}
-            ${opts.showListPrice && art.price != null ? `<div class="label__price">${Number(art.price).toFixed(2)} €</div>` : ''}
-            ${opts.showEan && art.articleNumber ? `
+            ${opts.showArticleNumber && item.articleNumber ? `<div class="label__sku">${item.articleNumber}</div>` : ''}
+            ${opts.showShortText && item.name ? `<div class="label__title">${item.name}</div>` : ''}
+            ${opts.showListPrice && item.price != null ? `<div class="label__price">${Number(item.price).toFixed(2)} €</div>` : ''}
+            ${opts.showEan && item.ean ? `
               <div class="label__barcode">
                 <svg width="180" height="40"><rect width="180" height="40" fill="#000"/></svg>
               </div>
