@@ -97,9 +97,7 @@
     "win": {
       "icon": "build/icon.ico",
       "artifactName": "ETU-Etiketten-${version}-Setup.${ext}",
-      "target": "nsis",
-      "certificateFile": "${WINDOWS_PFX_FILE}",
-      "certificatePassword": "${WINDOWS_PFX_PASSWORD}"
+      "target": "nsis"
     },
     "nsis": {
       "oneClick": false,
