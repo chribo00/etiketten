@@ -18,14 +18,14 @@ function createMainWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
-      preload: path.join(__dirname, '../preload.js'),
+      preload: path.join(app.getAppPath(), 'build', 'preload.js'),
     },
   });
 
   mainWindow.webContents.on('will-navigate', (event, url) => {
     const isDev = !app.isPackaged;
     const allowed =
-      (isDev && url.startsWith('http://localhost')) ||
+      (isDev && url.startsWith('http://localhost:5173')) ||
       (!isDev && url.startsWith('file://'));
     if (!allowed) event.preventDefault();
   });
@@ -34,7 +34,7 @@ function createMainWindow() {
 
   if (app.isPackaged) {
     mainWindow.removeMenu();
-    void mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'));
+    void mainWindow.loadFile(path.join(app.getAppPath(), 'dist', 'index.html'));
   } else {
     void mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
