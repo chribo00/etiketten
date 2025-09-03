@@ -35,7 +35,12 @@ export function registerArticlesHandlers() {
       if (err instanceof z.ZodError) {
         return { ok: false, code: 'VALIDATION_ERROR', message: err.message, details: err.issues };
       }
-      return { ok: false, code: 'DB_ERROR', message: String(err) };
+      return {
+        ok: false,
+        code: err.code || 'SQLITE_ERROR',
+        message: err.message,
+        details: { row: err.row, articleNumber: err.articleNumber },
+      };
     }
   });
 }
