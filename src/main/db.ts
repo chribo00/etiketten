@@ -28,12 +28,21 @@ CREATE TABLE IF NOT EXISTS cart(
 
 const stmtInsert = db.prepare(
   `INSERT INTO articles (articleNumber, ean, name, price, unit, productGroup, category_id, updated_at)
-   VALUES (@articleNumber, @ean, @name, @price, @unit, @productGroup, @category_id, CURRENT_TIMESTAMP)`,
+   VALUES (@articleNumber, @ean, @name, @price, @unit, @productGroup, @category_id, CURRENT_TIMESTAMP)
+   ON CONFLICT(articleNumber) DO NOTHING`,
 );
 const stmtUpdate = db.prepare(
-  `UPDATE articles SET ean=@ean, name=@name, price=@price, unit=@unit, productGroup=@productGroup, category_id=@category_id, updated_at=CURRENT_TIMESTAMP
+  `UPDATE articles
+     SET ean=@ean, name=@name, price=@price, unit=@unit, productGroup=@productGroup,
+         category_id=@category_id, updated_at=CURRENT_TIMESTAMP
    WHERE articleNumber=@articleNumber`,
 );
+
+function parsePrice(v: unknown): number {
+  if (v == null) return 0;
+  const n = Number(String(v).replace(',', '.'));
+  return Number.isFinite(n) ? n : 0;
+}
 
 export function upsertArticles(batch: any[]) {
   if (!batch.length) return { inserted: 0, updated: 0 };
@@ -41,26 +50,47 @@ export function upsertArticles(batch: any[]) {
   const tx = db.transaction((rows: any[]) => {
     let inserted = 0;
     let updated = 0;
-    for (const raw of rows) {
+    for (let i = 0; i < rows.length; i++) {
+      const raw = rows[i];
       const item = {
-        articleNumber: String(raw.articleNumber || '').trim(),
-        ean: raw.ean ? String(raw.ean).trim() : null,
-        name: String(raw.name || '').trim() || '(ohne Bezeichnung)',
-        price: Number(raw.price ?? 0),
-        unit: raw.unit ?? null,
-        productGroup: raw.productGroup ?? null,
-        category_id: raw.category_id ?? null,
+        articleNumber: String(raw.articleNumber ?? '').trim(),
+        ean:
+          raw.ean != null && String(raw.ean).trim() !== ''
+            ? String(raw.ean).trim()
+            : null,
+        name: String(raw.name ?? '').trim() || '(ohne Bezeichnung)',
+        price: parsePrice(raw.price),
+        unit:
+          raw.unit != null && String(raw.unit).trim() !== ''
+            ? String(raw.unit).trim()
+            : null,
+        productGroup:
+          raw.productGroup != null && String(raw.productGroup).trim() !== ''
+            ? String(raw.productGroup).trim()
+            : null,
+        category_id:
+          raw.category_id != null && String(raw.category_id).trim() !== ''
+            ? Number(raw.category_id)
+            : null,
       };
       try {
-        stmtInsert.run(item);
-        inserted++;
-      } catch (e: any) {
-        if (String(e.message).includes('UNIQUE')) {
-          stmtUpdate.run(item);
-          updated++;
+        const ins = stmtInsert.run(item);
+        if (ins.changes === 0) {
+          const upd = stmtUpdate.run(item);
+          if (upd.changes === 0) {
+            const err: any = new Error('No matching article for update');
+            err.row = i;
+            err.articleNumber = item.articleNumber;
+            throw err;
+          }
+          updated += upd.changes;
         } else {
-          throw e;
+          inserted += ins.changes;
         }
+      } catch (e: any) {
+        e.row = i;
+        e.articleNumber = item.articleNumber;
+        throw e;
       }
     }
     return { inserted, updated };
