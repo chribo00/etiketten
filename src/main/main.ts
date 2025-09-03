@@ -50,10 +50,12 @@ async function loadIpcModules() {
   for (const m of modules) {
     try {
       const mod = await import(m);
-      if (typeof mod.registerIpcHandlers === 'function') mod.registerIpcHandlers();
-      if (typeof mod.registerSettingsHandlers === 'function') mod.registerSettingsHandlers();
-    } catch {
-      /* ignore */
+      const resolved = (mod as any).default ?? mod;
+      if (typeof resolved.registerIpcHandlers === 'function') resolved.registerIpcHandlers();
+      if (typeof resolved.registerSettingsHandlers === 'function') resolved.registerSettingsHandlers();
+      if (typeof resolved.registerPrintHandlers === 'function') resolved.registerPrintHandlers();
+    } catch (err) {
+      console.error('Failed to load IPC module', m, err);
     }
   }
 }

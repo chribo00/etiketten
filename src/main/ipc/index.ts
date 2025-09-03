@@ -14,6 +14,7 @@ import {
   renameCategory,
   deleteCategory,
 } from '../db';
+import { IPC_CHANNELS, ok, err } from '../../shared/ipc';
 import { registerCartHandlers } from './cart';
 import { registerLabelsHandlers } from './labels';
 import { registerShellHandlers } from './shell';
@@ -40,16 +41,34 @@ export function registerIpcHandlers() {
   ipcMain.handle('custom:update', (_e, { id, patch }) => updateCustomArticle(id, patch));
   ipcMain.handle('custom:delete', (_e, id) => deleteCustomArticle(id));
 
-  ipcMain.handle('categories:list', () => listCategories());
-  ipcMain.handle('categories:create', (_e, name) => createCategory(name));
-  ipcMain.handle('categories:update', (_e, { id, name }) => renameCategory(id, name));
-  ipcMain.handle('categories:delete', (_e, payload) =>
+  ipcMain.handle(IPC_CHANNELS.categories.list, () => {
+    try {
+      return ok(listCategories());
+    } catch (e: any) {
+      return err('DB_ERROR', e.message);
+    }
+  });
+  ipcMain.handle(IPC_CHANNELS.categories.create, (_e, name) => createCategory(name));
+  ipcMain.handle(IPC_CHANNELS.categories.update, (_e, { id, name }) => renameCategory(id, name));
+  ipcMain.handle(IPC_CHANNELS.categories.delete, (_e, payload) =>
     deleteCategory(payload.id, payload.mode, payload.reassignToId),
   );
 
-  ipcMain.handle('db:info', () => getDbInfo());
+  ipcMain.handle(IPC_CHANNELS.db.info, () => {
+    try {
+      return ok(getDbInfo());
+    } catch (e: any) {
+      return err('DB_ERROR', e.message);
+    }
+  });
 
-  ipcMain.handle('db:clear', () => clearArticles());
+  ipcMain.handle(IPC_CHANNELS.db.clear, () => {
+    try {
+      return ok(clearArticles());
+    } catch (e: any) {
+      return err('DB_ERROR', e.message);
+    }
+  });
 
   ipcMain.handle('dialog:pick-datanorm', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({

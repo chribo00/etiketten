@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import { IPC_CHANNELS, IpcResponse } from './shared/ipc';
 
 export type DatanormImportPayload = {
   filePath: string;
@@ -27,11 +28,16 @@ const bridge = {
     ipcRenderer.invoke('custom:update', { id, patch }),
   customDelete: (id: number) => ipcRenderer.invoke('custom:delete', id),
   categories: {
-    list: () => ipcRenderer.invoke('categories:list'),
-    create: (name: string) => ipcRenderer.invoke('categories:create', name),
-    update: (id: number, name: string) => ipcRenderer.invoke('categories:update', { id, name }),
-    delete: (id: number, mode: 'reassign' | 'deleteArticles', reassignToId?: number | null) =>
-      ipcRenderer.invoke('categories:delete', { id, mode, reassignToId }),
+    list: (): Promise<IpcResponse<{ id: number; name: string }[]>> =>
+      ipcRenderer.invoke(IPC_CHANNELS.categories.list),
+    create: (name: string) => ipcRenderer.invoke(IPC_CHANNELS.categories.create, name),
+    update: (id: number, name: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.categories.update, { id, name }),
+    delete: (
+      id: number,
+      mode: 'reassign' | 'deleteArticles',
+      reassignToId?: number | null,
+    ) => ipcRenderer.invoke(IPC_CHANNELS.categories.delete, { id, mode, reassignToId }),
   },
   media: {
     addPrimary: (articleId: number, filePath: string, alt?: string) =>
@@ -39,8 +45,9 @@ const bridge = {
     list: (articleId: number) => ipcRenderer.invoke('media:list', { articleId }),
     remove: (mediaId: number) => ipcRenderer.invoke('media:remove', { mediaId }),
   },
-  dbInfo: () => ipcRenderer.invoke('db:info'),
-  dbClear: () => ipcRenderer.invoke('db:clear'),
+  dbInfo: (): Promise<IpcResponse<{ path: string; rowCount: number }>> =>
+    ipcRenderer.invoke(IPC_CHANNELS.db.info),
+  dbClear: (): Promise<IpcResponse<number>> => ipcRenderer.invoke(IPC_CHANNELS.db.clear),
 };
 
 try {
@@ -83,3 +90,4 @@ try {
 }
 
 export type Bridge = typeof bridge;
+export type Api = typeof api;

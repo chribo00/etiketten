@@ -55,13 +55,22 @@ const ArticleSearch: React.FC<Props> = ({ onCartChange }) => {
     }, [artnr, autoEan, eanDirty]);
 
   const loadInfo = async () => {
-    const info = await window.bridge?.dbInfo?.();
-    if (info) setDbInfoText(`DB enthält ${info.rowCount} Artikel`);
+    const res = await window.bridge?.dbInfo?.();
+    if (res?.ok) {
+      setDbInfoText(`DB enthält ${res.data.rowCount} Artikel`);
+    } else if (res?.error) {
+      console.error('dbInfo failed', res.error);
+    }
   };
 
   const loadCategories = async () => {
-    const list = await window.bridge?.categories?.list();
-    setCategories(list || []);
+    const res = await window.bridge?.categories?.list();
+    if (res?.ok) {
+      setCategories(res.data);
+    } else if (res?.error) {
+      console.error('categories.list failed', res.error);
+      setCategories([]);
+    }
   };
 
   const refreshList = async (

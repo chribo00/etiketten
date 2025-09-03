@@ -24,6 +24,16 @@ export const IPC_CHANNELS = {
     list: 'ipc.media.list',
     remove: 'ipc.media.remove',
   },
+  categories: {
+    list: 'categories:list',
+    create: 'categories:create',
+    update: 'categories:update',
+    delete: 'categories:delete',
+  },
+  db: {
+    info: 'db:info',
+    clear: 'db:clear',
+  },
   dialog: {
     open: 'ipc.dialog.open',
   },
@@ -31,6 +41,15 @@ export const IPC_CHANNELS = {
     open: 'ipc.shell.open',
   },
 } as const;
+
+export type IpcError = { code: string; message: string; details?: any };
+export type IpcResponse<T> = { ok: true; data: T } | { ok: false; error: IpcError };
+
+export const ok = <T>(data: T): IpcResponse<T> => ({ ok: true, data });
+export const err = (code: string, message: string, details?: any): IpcResponse<never> => ({
+  ok: false,
+  error: { code, message, details },
+});
 
 export const ImportResultSchema = z.object({ imported: z.number() });
 export const ImportProgressSchema = z.object({ processed: z.number(), total: z.number().optional() });
