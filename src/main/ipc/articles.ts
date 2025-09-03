@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron';
 import { z } from 'zod';
-import { searchArticles, upsertArticles } from '../db';
+import { searchArticles, upsertArticles, type ArticleRow } from '../db';
 import { IPC_CHANNELS, SearchPayloadSchema, SearchResultSchema } from '../../shared/ipc';
 
 export function registerArticlesHandlers() {
@@ -25,21 +25,22 @@ export function registerArticlesHandlers() {
   });
   const UpsertMany = z.array(UpsertItem);
 
-    ipcMain.handle(IPC_CHANNELS.articles.upsertMany, (_e, items) => {
+  ipcMain.handle(IPC_CHANNELS.articles.upsertMany, (_e, items) => {
     try {
-      const parsed = UpsertMany.parse(items);
-      const result = upsertArticles(parsed);
-      return { ok: true, ...result };
+      const parsed = UpsertMany.parse(items) as ArticleRow[];
+      return upsertArticles(parsed);
     } catch (err: any) {
       console.error('articles:upsertMany failed', err);
       if (err instanceof z.ZodError) {
-        return { ok: false, code: 'VALIDATION_ERROR', message: err.message, details: err.issues };
+        return { ok: false, error: { message: err.message, details: err.issues } };
       }
       return {
         ok: false,
-        code: err.code || 'SQLITE_ERROR',
-        message: err.message,
-        details: { row: err.row, articleNumber: err.articleNumber },
+        error: {
+          message: err?.message || 'UPSERT failed',
+          row: err?.row,
+          articleNumber: err?.articleNumber,
+        },
       };
     }
   });

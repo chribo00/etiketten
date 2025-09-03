@@ -25,101 +25,97 @@ CREATE TABLE IF NOT EXISTS cart(
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );`);
 
-const stmtInsert = db.prepare(
-  `INSERT INTO articles (articleNumber, ean, name, price, unit, productGroup, category_id, updated_at)
-   VALUES (@articleNumber, @ean, @name, @price, @unit, @productGroup, @category_id, CURRENT_TIMESTAMP)
-   ON CONFLICT(articleNumber) DO NOTHING`,
-);
-const stmtUpdate = db.prepare(
-  `UPDATE articles
-     SET ean=@ean, name=@name, price=@price, unit=@unit, productGroup=@productGroup,
-         category_id=@category_id, updated_at=CURRENT_TIMESTAMP
-   WHERE articleNumber=@articleNumber`,
-);
+export type ArticleRow = {
+  articleNumber: string;
+  ean: string | null;
+  name: string | null;
+  price: number | null;
+  unit: string | null;
+  productGroup: string | null;
+  category_id: number | null;
+};
 
-const UPSERT_COLS = [
-  'articleNumber',
-  'ean',
-  'name',
-  'price',
-  'unit',
-  'productGroup',
-  'category_id',
-];
+const UPSERT_COLUMNS = [
+  "articleNumber",
+  "ean",
+  "name",
+  "price",
+  "unit",
+  "productGroup",
+  "category_id",
+  "updated_at",
+] as const;
 
-function parsePrice(v: unknown): number {
-  if (v == null) return 0;
-  const n = Number(String(v).replace(',', '.'));
-  return Number.isFinite(n) ? n : 0;
-}
+const INSERT_SQL = `
+INSERT INTO articles (
+  articleNumber, ean, name, price, unit, productGroup, category_id, updated_at
+) VALUES (
+  @articleNumber, @ean, @name, @price, @unit, @productGroup, @category_id, @updated_at
+)
+ON CONFLICT(articleNumber) DO UPDATE SET
+  ean          = excluded.ean,
+  name         = excluded.name,
+  price        = excluded.price,
+  unit         = excluded.unit,
+  productGroup = excluded.productGroup,
+  category_id  = excluded.category_id,
+  updated_at   = excluded.updated_at
+`;
 
-export function upsertArticles(batch: any[]) {
-  if (!batch.length) return { inserted: 0, updated: 0 };
-  console.info(`upsertArticles count=${batch.length}`); // debug info
-  const tx = db.transaction((rows: any[]) => {
-    let inserted = 0;
-    let updated = 0;
-    for (let i = 0; i < rows.length; i++) {
-      const raw = rows[i];
-      const item = {
-        articleNumber: String(raw.articleNumber ?? '').trim(),
-        ean:
-          raw.ean != null && String(raw.ean).trim() !== ''
-            ? String(raw.ean).trim()
-            : null,
-        name: String(raw.name ?? '').trim() || '(ohne Bezeichnung)',
-        price: parsePrice(raw.price),
-        unit:
-          raw.unit != null && String(raw.unit).trim() !== ''
-            ? String(raw.unit).trim()
-            : null,
-        productGroup:
-          raw.productGroup != null && String(raw.productGroup).trim() !== ''
-            ? String(raw.productGroup).trim()
-            : null,
-        category_id:
-          raw.category_id != null && String(raw.category_id).trim() !== ''
-            ? Number(raw.category_id)
-            : null,
+const stmtUpsert = db.prepare(INSERT_SQL);
+
+export function upsertArticles(rows: ArticleRow[]) {
+  // Debug: Schema-Check einmalig loggen
+  try {
+    const tableInfo = db.prepare("PRAGMA table_info(articles)").all() as any[];
+    const idxList = db.prepare("PRAGMA index_list(articles)").all();
+    console.debug(
+      "[db] table_info(articles) =>",
+      tableInfo.map((c: any) => ({ name: c.name, notnull: c.notnull, dflt: c.dflt_value, type: c.type })),
+    );
+    console.debug("[db] index_list(articles) =>", idxList);
+  } catch (e) {
+    console.warn("[db] PRAGMA checks failed:", e);
+  }
+
+  const tx = db.transaction((items: ArticleRow[]) => {
+    const now = Date.now();
+
+    for (let i = 0; i < items.length; i++) {
+      const r = items[i];
+
+      // Sicherstellen: alle Keys vorhanden; undefined → null
+      const bind = {
+        articleNumber: r.articleNumber ?? null,
+        ean: r.ean ?? null,
+        name: r.name ?? null,
+        price: r.price ?? null,
+        unit: r.unit ?? null,
+        productGroup: r.productGroup ?? null,
+        category_id: r.category_id ?? null,
+        updated_at: now,
       };
-      if (i === 0) {
-        console.debug('upsertArticles row0 mapped', { columns: UPSERT_COLS, values: item });
+
+      // Minimalvalidierung – articleNumber muss vorhanden sein
+      if (!bind.articleNumber || typeof bind.articleNumber !== "string") {
+        throw Object.assign(new Error("articleNumber missing/invalid"), { row: i, values: r });
       }
+
       try {
-        const ins = stmtInsert.run(item);
-        if (ins.changes === 0) {
-          const upd = stmtUpdate.run(item);
-          if (upd.changes === 0) {
-            const err: any = new Error('No matching article for update');
-            err.row = i;
-            err.articleNumber = item.articleNumber;
-            throw err;
-          }
-          updated += upd.changes;
-        } else {
-          inserted += ins.changes;
-        }
-      } catch (e: any) {
-        e.row = i;
-        e.articleNumber = item.articleNumber;
-        if (i === 0) {
-          console.error('upsertArticles row0 failed', {
-            columns: UPSERT_COLS,
-            values: item,
-            message: e.message,
-          });
-        }
-        throw e;
+        stmtUpsert.run(bind);
+      } catch (err: any) {
+        console.error("[db] UPSERT failed", {
+          row: i,
+          values: bind,
+          message: err?.message,
+        });
+        throw Object.assign(err, { row: i, articleNumber: bind.articleNumber });
       }
     }
-    return { inserted, updated };
   });
-  try {
-    return tx(batch);
-  } catch (err) {
-    console.error('upsertArticles failed', err);
-    throw err;
-  }
+
+  tx(rows);
+  return { ok: true, count: rows.length };
 }
 
 export function getDbInfo() {

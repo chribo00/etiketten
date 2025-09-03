@@ -10,12 +10,13 @@ export function ensureSchema(db: Database) {
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
 
-  const getVersion = (): number => Number(db.prepare("PRAGMA user_version").pluck().get());
+  const getVersion = (): number =>
+    Number(db.prepare("PRAGMA user_version").pluck().get());
 
   const run = db.transaction(() => {
     let v = getVersion();
 
-    // v0 -> v1: Basis-Tabellen + benötigte Indizes
+    // v0 -> v1: Basis-Tabellen
     if (v < 1) {
       db.exec(`
         CREATE TABLE IF NOT EXISTS categories (
@@ -35,19 +36,25 @@ export function ensureSchema(db: Database) {
           updated_at INTEGER,
           FOREIGN KEY (category_id) REFERENCES categories(id)
         );
-
-        -- WICHTIG: UNIQUE-Index für UPSERT-Strategie
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_articles_articlenumber
-          ON articles(articleNumber);
-
-        -- optionale Performance-Indizes (idempotent)
-        CREATE INDEX IF NOT EXISTS idx_articles_ean ON articles(ean);
-        CREATE INDEX IF NOT EXISTS idx_articles_updated_at ON articles(updated_at);
       `);
 
       db.exec("PRAGMA user_version = 1");
       v = 1;
     }
+
+    // Spalte updated_at nachrüsten, falls in bestehender DB noch nicht vorhanden
+    const cols = db.prepare("PRAGMA table_info(articles)").all() as any[];
+    if (!cols.some((c) => c.name === "updated_at")) {
+      db.exec("ALTER TABLE articles ADD COLUMN updated_at INTEGER");
+    }
+
+    // Indizes sicherstellen (idempotent)
+    db.exec(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_articles_articlenumber
+        ON articles(articleNumber);
+      CREATE INDEX IF NOT EXISTS idx_articles_ean ON articles(ean);
+      CREATE INDEX IF NOT EXISTS idx_articles_updated_at ON articles(updated_at);
+    `);
 
     // v1 -> v2: Beispiel für spätere Spalten/Indizes (nur Muster)
     // if (v < 2) {
