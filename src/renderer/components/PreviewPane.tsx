@@ -51,7 +51,9 @@ const PreviewPane: React.FC<Props> = ({ opts, cart }) => {
   return (
     <div className="labels-page">
       <div className="toolbar">
-        <button onClick={() => setOpenLayout(true)}>Etiketten formatieren</button>
+        <button type="button" onClick={() => setOpenLayout(true)}>
+          Etiketten formatieren
+        </button>
         <button className="primary" onClick={handlePrint} type="button">
           PDF-Etiketten erzeugen
         </button>
