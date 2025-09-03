@@ -17,14 +17,20 @@ export function applyMapping({ rows, headers, mapping }: { rows: any[]; headers:
       const get = (field: string) => r[idx[mapping[field]] ?? -1];
       const articleNumber = String(get('artikelnummer') ?? '').trim();
       if (!articleNumber) return null;
+
       const eanRaw = String(get('ean') ?? '').trim();
-      const ean = isValidEan(eanRaw) ? eanRaw : undefined;
+      const ean = isValidEan(eanRaw) ? eanRaw : null;
+
+      const name = String(get('kurztext') ?? '').trim();
+      const price = normalizePrice(get('preis')) ?? 0;
+      const unit = String(get('einheit') ?? '').trim();
+
       return {
         articleNumber,
         ean,
-        name: String(get('kurztext') ?? '').trim(),
-        price: normalizePrice(get('preis')), 
-        unit: String(get('einheit') ?? '').trim() || null,
+        name: name || '(ohne Bezeichnung)',
+        price,
+        unit: unit || null,
       };
     })
     .filter(Boolean);
