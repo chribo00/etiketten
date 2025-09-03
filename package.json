@@ -4,7 +4,7 @@
   "description": "Etikettenerstellungs-Software",
   "author": "ETU GmbH",
   "private": true,
-  "main": "build/main.js",
+  "main": "build/main/main.js",
   "scripts": {
     "dev": "npm run build:preload && concurrently -k \"npm:dev:renderer\" \"npm:dev:main\"",
     "dev:renderer": "vite --config vite.config.mts",
