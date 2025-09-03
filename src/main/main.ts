@@ -18,7 +18,7 @@ function createMainWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
-      preload: path.join(app.getAppPath(), 'build', 'preload.js'),
+      preload: path.join(__dirname, '..', 'preload.js'),
     },
   });
 
