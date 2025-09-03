@@ -5,12 +5,16 @@ import ImportWizard from './ImportWizard';
 import { z } from 'zod';
 import { fromArticleToEan13, isValidEan13, onlyDigits } from '../lib/labels';
 
+interface Props {
+  onCartChange?: (items: any[]) => void;
+}
+
 const currency = new Intl.NumberFormat('de-AT', {
   style: 'currency',
   currency: 'EUR',
 });
 
-const ArticleSearch: React.FC = () => {
+const ArticleSearch: React.FC<Props> = ({ onCartChange }) => {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize] = useState(50);
@@ -299,6 +303,10 @@ const ArticleSearch: React.FC = () => {
     };
 
     const totalSelected = selectedIds.size;
+
+    useEffect(() => {
+      if (onCartChange) onCartChange(cart);
+    }, [cart, onCartChange]);
 
   return (
     <>

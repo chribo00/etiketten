@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import ImportPane from './ImportPane';
 import ArticleSearch from './ArticleSearch';
-import CartPane from './CartPane';
 import LabelOptionsPane, { LabelOptions } from './LabelOptionsPane';
 import PreviewPane from './PreviewPane';
 
@@ -13,14 +12,7 @@ const Shell: React.FC = () => {
     showListPrice: true,
     showImage: false,
   });
-  const [cartCount, setCartCount] = useState(0);
-  const refreshCart = async () => {
-    const c = (await window.bridge?.cart?.get?.()) || [];
-    setCartCount(c.length);
-  };
-  useEffect(() => {
-    refreshCart();
-  }, []);
+  const [cart, setCart] = useState<any[]>([]);
   return (
     <div>
       {!window.bridge && (
@@ -30,11 +22,10 @@ const Shell: React.FC = () => {
       )}
       <h1>Etiketten</h1>
       <ImportPane />
-      <ArticleSearch />
+      <ArticleSearch onCartChange={setCart} />
       <LabelOptionsPane opts={opts} onChange={setOpts} />
-      <CartPane onChange={refreshCart} />
-      <div>Warenkorb: {cartCount} Artikel</div>
-      <PreviewPane opts={opts} />
+      <div>Warenkorb: {cart.length} Artikel</div>
+      <PreviewPane opts={opts} cart={cart} />
     </div>
   );
 };
