@@ -1,22 +1,45 @@
 import React, { useEffect, useState } from 'react';
-import type { ImportRow, ImportSummary } from './types';
+import type { RawImportRow, ImportRow, Mapping, ImportSummary } from './types';
+import { validateRows, type RowIssue } from './validators';
 
 interface Props {
-  rows: ImportRow[];
+  rows: RawImportRow[];
+  mapping: Mapping;
   onBack: () => void;
   onCancel: () => void;
   onComplete: (summary: ImportSummary, cancelled: boolean) => void;
 }
 
-const StepPreview: React.FC<Props> = ({ rows, onBack, onCancel, onComplete }) => {
-  const headers = rows[0] ? Object.keys(rows[0]) : [];
-  const sample = rows.slice(0, 100);
+const orderedFields: Array<keyof ImportRow> = [
+  'articleNumber',
+  'ean',
+  'name',
+  'price',
+  'unit',
+  'productGroup',
+  'category',
+];
+
+const StepPreview: React.FC<Props> = ({ rows, mapping, onBack, onCancel, onComplete }) => {
+  const [validatedRows, setValidatedRows] = useState<ImportRow[]>([]);
+  const [issues, setIssues] = useState<RowIssue[]>([]);
+  const [stats, setStats] = useState({ ok: 0, warn: 0, error: 0 });
   const [isImporting, setImporting] = useState(false);
   const [progress, setProgress] = useState<{ processed: number; total: number }>({
     processed: 0,
     total: rows.length,
   });
   const [start, setStart] = useState<number | null>(null);
+
+  useEffect(() => {
+    const res = validateRows(rows, mapping);
+    setValidatedRows(res.rows);
+    setIssues(res.issues);
+    setStats(res.stats);
+  }, [rows, mapping]);
+
+  const headers = orderedFields.filter((f) => mapping[f] !== undefined && mapping[f] !== null);
+  const sample = validatedRows.slice(0, 100);
 
   useEffect(() => {
     if (!isImporting) return;
@@ -59,7 +82,8 @@ const StepPreview: React.FC<Props> = ({ rows, onBack, onCancel, onComplete }) =>
     setStart(Date.now());
     setImporting(true);
     try {
-      const res: any = await window.api.import.run({ rows });
+      const goodRows = validatedRows.filter((_, i) => issues[i].errors.length === 0);
+      const res: any = await window.api.import.run({ rows: goodRows });
       if (res?.ok) {
         console.info('Import beendet');
         onComplete(res.data, res.data.cancelled === true);
@@ -104,13 +128,20 @@ const StepPreview: React.FC<Props> = ({ rows, onBack, onCancel, onComplete }) =>
             {sample.map((r, i) => (
               <tr key={i}>
                 {headers.map((h) => (
-                  <td key={h}>{(r as any)[h]}</td>
+                  <td key={h}>{String((r as Record<string, unknown>)[h] ?? '')}</td>
                 ))}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      <div>
+        <span>OK: {stats.ok}</span> | <span>Warnungen: {stats.warn}</span> |{' '}
+        <span>Fehler: {stats.error}</span>
+      </div>
+      {mapping.name === undefined || mapping.name === null ? (
+        <p className="warn">Name nicht gesetzt (leer gespeichert)</p>
+      ) : null}
       {isImporting && (
         <div>
           <progress value={progress.processed} max={progress.total}></progress>
@@ -128,8 +159,8 @@ const StepPreview: React.FC<Props> = ({ rows, onBack, onCancel, onComplete }) =>
         <button
           className="primary"
           onClick={startImport}
-          disabled={isImporting}
-          aria-disabled={isImporting}
+          disabled={isImporting || stats.error > 0}
+          aria-disabled={isImporting || stats.error > 0}
         >
           Import starten
         </button>
