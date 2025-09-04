@@ -3,14 +3,19 @@ import StepFile from './StepFile';
 import StepMapping from './StepMapping';
 import StepPreview from './StepPreview';
 import StepResult from './StepResult';
-import type { ParsedFile, ImportRow, Mapping, ImportSummary } from './types';
+import type {
+  ParsedFile,
+  RawImportRow,
+  Mapping,
+  ImportSummary,
+} from './types';
 
 type Props = { open: boolean; onClose: () => void };
 
 const ImportWizard: React.FC<Props> = ({ open, onClose }) => {
   const [step, setStep] = useState(0);
   const [parsed, setParsed] = useState<ParsedFile | null>(null);
-  const [rows, setRows] = useState<ImportRow[]>([]);
+  const [rows, setRows] = useState<RawImportRow[]>([]);
   const [mapping, setMapping] = useState<Mapping>({});
   const [summary, setSummary] = useState<ImportSummary | null>(null);
   const [cancelled, setCancelled] = useState(false);
@@ -22,7 +27,7 @@ const ImportWizard: React.FC<Props> = ({ open, onClose }) => {
     setStep(1);
   };
 
-  const handleMapped = (r: ImportRow[], m: Mapping) => {
+  const handleMapped = (r: RawImportRow[], m: Mapping) => {
     setRows(r);
     setMapping(m);
     setStep(2);
@@ -63,6 +68,7 @@ const ImportWizard: React.FC<Props> = ({ open, onClose }) => {
         {step === 2 && (
           <StepPreview
             rows={rows}
+            mapping={mapping}
             onBack={() => setStep(1)}
             onCancel={handleCancel}
             onComplete={handleComplete}

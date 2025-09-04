@@ -1,48 +1,42 @@
-import React, { useEffect, useState } from 'react';
-import type { Mapping, ImportRow } from './types';
-import { normalizeString, normalizePrice } from './validators';
+import React, { useState } from 'react';
+import type { Mapping, RawImportRow, MappingField } from './types';
+import { normalizeString } from './validators';
 
 type Props = {
   headers: string[];
-  rows: any[][];
+  rows: unknown[][];
   onBack: () => void;
-  onMapped: (rows: ImportRow[], mapping: Mapping) => void;
+  onMapped: (rows: RawImportRow[], mapping: Mapping) => void;
 };
 
-const targetFields = [
+const targetFields: { key: MappingField; label: string; required?: boolean }[] = [
   { key: 'articleNumber', label: 'Artikelnummer', required: true },
   { key: 'ean', label: 'EAN' },
-  { key: 'name', label: 'Name', required: true },
+  { key: 'name', label: 'Name' },
   { key: 'price', label: 'Preis' },
   { key: 'unit', label: 'Einheit' },
   { key: 'productGroup', label: 'Produktgruppe' },
   { key: 'category', label: 'Kategorie' },
 ];
 
+const NO_MAP = '__NONE__';
+
 const StepMapping: React.FC<Props> = ({ headers, rows, onBack, onMapped }) => {
   const [mapping, setMapping] = useState<Mapping>({});
-
-  useEffect(() => {
-    const auto: Mapping = {};
-    targetFields.forEach((f) => {
-      const h = headers.find((hh) => hh.toLowerCase() === f.label.toLowerCase());
-      if (h) auto[f.key] = h;
-    });
-    setMapping(auto);
-  }, [headers]);
 
   const apply = () => {
     const idx: Record<string, number> = {};
     headers.forEach((h, i) => (idx[h] = i));
-    const mapped: ImportRow[] = rows.map((r) => ({
-      articleNumber: normalizeString(r[idx[mapping.articleNumber]]) || '',
-      ean: normalizeString(r[idx[mapping.ean]]) || null,
-      name: normalizeString(r[idx[mapping.name]]) || '',
-      price: normalizePrice(r[idx[mapping.price]]),
-      unit: normalizeString(r[idx[mapping.unit]]),
-      productGroup: normalizeString(r[idx[mapping.productGroup]]),
-      category: normalizeString(r[idx[mapping.category]]),
-    }));
+    const mapped: RawImportRow[] = rows.map((r) => {
+      const obj: Partial<Record<MappingField, unknown>> = {};
+      targetFields.forEach(({ key }) => {
+        const m = mapping[key];
+        if (typeof m === 'string') {
+          obj[key] = normalizeString(r[idx[m]]);
+        }
+      });
+      return obj as RawImportRow;
+    });
     onMapped(mapped, mapping);
   };
 
@@ -55,12 +49,28 @@ const StepMapping: React.FC<Props> = ({ headers, rows, onBack, onMapped }) => {
               <td>{tf.label}</td>
               <td>
                 <select
-                  value={mapping[tf.key] || ''}
-                  onChange={(e) =>
-                    setMapping((m) => ({ ...m, [tf.key]: e.target.value }))
+                  value={
+                    mapping[tf.key] === null
+                      ? NO_MAP
+                      : mapping[tf.key] || ''
                   }
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setMapping((m) => {
+                      const next = { ...m } as Mapping;
+                      if (!val) {
+                        delete next[tf.key];
+                      } else if (val === NO_MAP) {
+                        next[tf.key] = null;
+                      } else {
+                        next[tf.key] = val;
+                      }
+                      return next;
+                    });
+                  }}
                 >
-                  <option value="">--</option>
+                  <option value="">— auswählen —</option>
+                  <option value={NO_MAP}>— nicht zuordnen —</option>
                   {headers.map((h) => (
                     <option key={h} value={h}>
                       {h}
@@ -72,9 +82,17 @@ const StepMapping: React.FC<Props> = ({ headers, rows, onBack, onMapped }) => {
           ))}
         </tbody>
       </table>
+      {mapping.articleNumber && (mapping.name == null || mapping.name === undefined) && (
+        <p className="warn">Name nicht zugeordnet – neue Artikel werden ohne Namen gespeichert.</p>
+      )}
       <div className="modal-actions">
         <button onClick={onBack}>Zurück</button>
-        <button className="primary" onClick={apply}>
+        <button
+          className="primary"
+          onClick={apply}
+          disabled={typeof mapping.articleNumber !== 'string'}
+          aria-disabled={typeof mapping.articleNumber !== 'string'}
+        >
           Weiter
         </button>
       </div>
