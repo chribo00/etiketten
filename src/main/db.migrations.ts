@@ -50,7 +50,7 @@ export function ensureSchema(db: Database) {
 
     // Indizes sicherstellen (idempotent)
     db.exec(`
-      CREATE UNIQUE INDEX IF NOT EXISTS idx_articles_articlenumber
+      CREATE INDEX IF NOT EXISTS idx_articles_articlenumber
         ON articles(articleNumber);
       CREATE INDEX IF NOT EXISTS idx_articles_ean ON articles(ean);
       CREATE INDEX IF NOT EXISTS idx_articles_updated_at ON articles(updated_at);

@@ -11,6 +11,10 @@ export const dbPath = path.join(dataDir, 'app-data.db');
 console.log('DB path:', dbPath);
 const db = new Database(dbPath);
 ensureSchema(db);
+console.debug(
+  "[db] index_list('articles') =>",
+  db.prepare("PRAGMA index_list('articles')").all(),
+);
 console.log('Schema OK');
 
 export const mediaRoot = path.join(app.getPath('userData'), 'media');
