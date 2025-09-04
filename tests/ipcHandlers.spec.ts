@@ -9,6 +9,9 @@ jest.mock('electron', () => ({
       handlers[channel] = fn;
     },
   },
+  BrowserWindow: {
+    getFocusedWindow: () => ({ webContents: { openDevTools: jest.fn() } }),
+  },
 }));
 
 jest.mock('../src/main/db', () => ({

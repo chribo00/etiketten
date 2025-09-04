@@ -1,4 +1,4 @@
-import { ipcMain, dialog } from 'electron';
+import { ipcMain, dialog, BrowserWindow } from 'electron';
 import path from 'path';
 import { importDatanormFile } from '../datanorm/parser';
 import {
@@ -29,6 +29,10 @@ export function registerIpcHandlers() {
   registerMediaHandlers();
   registerArticlesHandlers();
   registerImportHandlers();
+
+  ipcMain.handle(IPC_CHANNELS.devtools.open, () => {
+    BrowserWindow.getFocusedWindow()?.webContents.openDevTools({ mode: 'undocked' });
+  });
 
   ipcMain.handle(IPC_CHANNELS.datanorm.import, async (_e, { filePath, mapping, categoryId }) => {
     const res = await importDatanormFile({ filePath, mapping, categoryId });

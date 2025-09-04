@@ -27,6 +27,10 @@ export const IPC_CHANNELS = {
   import: {
     run: 'ipc.import.run',
     progress: 'ipc.import.progress',
+    cancel: 'ipc.import.cancel',
+  },
+  devtools: {
+    open: 'devtools:open',
   },
   categories: {
     list: 'categories:list',
