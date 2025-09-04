@@ -27,7 +27,8 @@
     "test": "ts-node -T scripts/run-tests-with-local-headers.ts",
     "test:unit": "ts-node -T scripts/run-tests-with-local-headers.ts",
     "test:file": "ts-node -T scripts/run-tests-with-local-headers.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dump-schema": "ts-node scripts/dump-schema.ts"
   },
   "dependencies": {
     "electron-updater": "^6.1.1",
