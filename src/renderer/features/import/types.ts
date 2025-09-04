@@ -36,8 +36,10 @@ export type ImportRow = {
 
 export type ImportSummary = {
   total: number;
+  processed: number;
   inserted: number;
   updated: number;
   skipped: number;
   errors: { rowIndex: number; articleNumber?: string; message: string }[];
+  cancelled: boolean;
 };

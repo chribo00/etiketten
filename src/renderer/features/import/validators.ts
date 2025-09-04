@@ -43,8 +43,6 @@ export function validateRows(rows: RawImportRow[], mapping: Mapping) {
       const name = normalizeString(r.name);
       if (!name) warnings.push('Name fehlt, wird als leer gespeichert');
       row.name = name || null;
-    } else {
-      warnings.push('Name nicht gesetzt (leer gespeichert)');
     }
 
     if (mapping.price !== undefined && mapping.price !== null) {

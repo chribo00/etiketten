@@ -14,7 +14,7 @@ export function registerImportHandlers() {
         onProgress: (p) => event.sender.send(IPC_CHANNELS.import.progress, p),
         shouldCancel: () => cancelled,
       });
-      return ok({ ...summary, cancelled });
+      return ok(summary);
     } catch (e: any) {
       return err('IMPORT_FAILED', e.message);
     }

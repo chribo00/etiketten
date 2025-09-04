@@ -86,7 +86,7 @@ const StepPreview: React.FC<Props> = ({ rows, mapping, onBack, onCancel, onCompl
       const res: any = await window.api.import.run({ rows: goodRows });
       if (res?.ok) {
         console.info('Import beendet');
-        onComplete(res.data, res.data.cancelled === true);
+        onComplete(res.data, res.data.cancelled);
       } else {
         console.error('Import fehlgeschlagen', res?.error);
         alert(res?.error?.message || 'Import fehlgeschlagen');
