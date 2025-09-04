@@ -9,7 +9,7 @@ const dataDir = path.join(app.getPath('userData'), 'data');
 fs.mkdirSync(dataDir, { recursive: true });
 export const dbPath = path.join(dataDir, 'app-data.db');
 console.log('DB path:', dbPath);
-const db = new Database(dbPath);
+export const db = new Database(dbPath);
 ensureSchema(db);
 console.debug(
   "[db] index_list('articles') =>",

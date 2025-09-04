@@ -24,6 +24,10 @@ export const IPC_CHANNELS = {
     list: 'ipc.media.list',
     remove: 'ipc.media.remove',
   },
+  import: {
+    run: 'ipc.import.run',
+    progress: 'ipc.import.progress',
+  },
   categories: {
     list: 'categories:list',
     create: 'categories:create',

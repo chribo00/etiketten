@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Input, Checkbox } from '@fluentui/react-components';
 import CategoryManager from './CategoryManager';
-import ImportWizard from './ImportWizard';
+import ImportWizard from '../features/import/ImportWizard';
 import CartActions from './CartActions';
 import { z } from 'zod';
 import { fromArticleToEan13, isValidEan13, onlyDigits } from '../lib/labels';
