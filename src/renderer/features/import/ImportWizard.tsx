@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import StepFile from './StepFile';
 import StepMapping from './StepMapping';
 import StepPreview from './StepPreview';
-import type { ParsedFile, ImportRow, Mapping } from './types';
+import StepResult from './StepResult';
+import type { ParsedFile, ImportRow, Mapping, ImportSummary } from './types';
 
 type Props = { open: boolean; onClose: () => void };
 
@@ -11,6 +12,8 @@ const ImportWizard: React.FC<Props> = ({ open, onClose }) => {
   const [parsed, setParsed] = useState<ParsedFile | null>(null);
   const [rows, setRows] = useState<ImportRow[]>([]);
   const [mapping, setMapping] = useState<Mapping>({});
+  const [summary, setSummary] = useState<ImportSummary | null>(null);
+  const [cancelled, setCancelled] = useState(false);
 
   if (!open) return null;
 
@@ -25,9 +28,24 @@ const ImportWizard: React.FC<Props> = ({ open, onClose }) => {
     setStep(2);
   };
 
-  const handleImport = async (dryRun?: boolean) => {
-    await window.api.import.run({ rows, dryRun });
+  const reset = () => {
+    setStep(0);
+    setParsed(null);
+    setRows([]);
+    setMapping({});
+    setSummary(null);
+    setCancelled(false);
+  };
+
+  const handleCancel = () => {
+    reset();
     onClose();
+  };
+
+  const handleComplete = (s: ImportSummary, c: boolean) => {
+    setSummary(s);
+    setCancelled(c);
+    setStep(3);
   };
 
   return (
@@ -43,7 +61,23 @@ const ImportWizard: React.FC<Props> = ({ open, onClose }) => {
           />
         )}
         {step === 2 && (
-          <StepPreview rows={rows} onBack={() => setStep(1)} onImport={handleImport} />
+          <StepPreview
+            rows={rows}
+            onBack={() => setStep(1)}
+            onCancel={handleCancel}
+            onComplete={handleComplete}
+          />
+        )}
+        {step === 3 && summary && (
+          <StepResult
+            summary={summary}
+            cancelled={cancelled}
+            onClose={handleCancel}
+            onRestart={() => {
+              reset();
+              setStep(0);
+            }}
+          />
         )}
       </div>
     </div>

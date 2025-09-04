@@ -84,7 +84,14 @@ const api = {
   import: {
     run: (payload: { rows: any[]; dryRun?: boolean }) =>
       ipcRenderer.invoke(IPC_CHANNELS.import.run, payload),
+    onProgress: (handler: (p: { processed: number; total: number }) => void) => {
+      const listener = (_e: any, data: any) => handler(data);
+      ipcRenderer.on(IPC_CHANNELS.import.progress, listener);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.import.progress, listener);
+    },
+    cancel: () => ipcRenderer.invoke(IPC_CHANNELS.import.cancel),
   },
+  openDevTools: () => ipcRenderer.invoke(IPC_CHANNELS.devtools.open),
 };
 
 try {

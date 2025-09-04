@@ -5,6 +5,7 @@ export interface ImportArgs {
   rows: ArticleRow[];
   dryRun?: boolean;
   onProgress?: (p: { processed: number; total: number }) => void;
+  shouldCancel?: () => boolean;
 }
 
 export interface ImportSummary {
@@ -15,7 +16,7 @@ export interface ImportSummary {
   errors: { rowIndex: number; articleNumber?: string; message: string }[];
 }
 
-export function importArticles({ rows, dryRun = false, onProgress }: ImportArgs): ImportSummary {
+export function importArticles({ rows, dryRun = false, onProgress, shouldCancel }: ImportArgs): ImportSummary {
   const total = rows.length;
   const summary: ImportSummary = { total, inserted: 0, updated: 0, skipped: 0, errors: [] };
   if (dryRun || total === 0) return summary;
@@ -41,6 +42,7 @@ ON CONFLICT(articleNumber) DO UPDATE SET
     let processed = 0;
     const CHUNK = 500;
     for (let i = 0; i < all.length; i += CHUNK) {
+      if (shouldCancel?.()) break;
       const part = all.slice(i, i + CHUNK);
       part.forEach((r, idx) => {
         try {
@@ -54,6 +56,7 @@ ON CONFLICT(articleNumber) DO UPDATE SET
       });
       processed += part.length;
       onProgress?.({ processed, total });
+      if (shouldCancel?.()) break;
     }
   });
 

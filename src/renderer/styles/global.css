@@ -125,6 +125,37 @@ fieldset > label {
   gap: 10px;
   margin-top: 12px;
 }
+
+.wizard-footer {
+  position: sticky;
+  bottom: 0;
+  background: #fff;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #ccc;
+}
+
+.with-footer {
+  padding-bottom: 60px;
+}
+
+.loading {
+  cursor: progress;
+}
+
+.summary {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.summary .badge {
+  background: #eee;
+  padding: 8px 12px;
+  border-radius: 4px;
+}
 .primary {
   background: #1f6feb;
   color: #fff;
