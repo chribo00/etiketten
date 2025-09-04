@@ -20,6 +20,7 @@ import { registerLabelsHandlers } from './labels';
 import { registerShellHandlers } from './shell';
 import { registerMediaHandlers } from './media';
 import { registerArticlesHandlers } from './articles';
+import { registerImportHandlers } from './import';
 
 export function registerIpcHandlers() {
   registerCartHandlers();
@@ -27,6 +28,7 @@ export function registerIpcHandlers() {
   registerShellHandlers();
   registerMediaHandlers();
   registerArticlesHandlers();
+  registerImportHandlers();
 
   ipcMain.handle(IPC_CHANNELS.datanorm.import, async (_e, { filePath, mapping, categoryId }) => {
     const res = await importDatanormFile({ filePath, mapping, categoryId });

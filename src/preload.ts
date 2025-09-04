@@ -81,6 +81,10 @@ const api = {
         | { ok: false; code?: string; message: string; details?: any }
       >,
   },
+  import: {
+    run: (payload: { rows: any[]; dryRun?: boolean }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.import.run, payload),
+  },
 };
 
 try {
