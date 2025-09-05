@@ -11,7 +11,6 @@ interface Props {
 
 const StepPreview: React.FC<Props> = ({ headers, rows, mapping, onBack, onComplete }) => {
   const [isImporting, setImporting] = useState(false);
-  const [createMissingCategories, setCreateMissingCategories] = useState(true);
 
   const mappedSample = useMemo(() => {
     const idx: Record<string, number> = {};
@@ -41,7 +40,6 @@ const StepPreview: React.FC<Props> = ({ headers, rows, mapping, onBack, onComple
       const res: ImportResult = await window.api.invoke('import:run', {
         rows: objects,
         mapping,
-        options: { createMissingCategories, dryRun: false },
       });
       onComplete(res);
     } catch (e: any) {
@@ -74,14 +72,6 @@ const StepPreview: React.FC<Props> = ({ headers, rows, mapping, onBack, onComple
           </tbody>
         </table>
       </div>
-      <label style={{ display: 'block', marginTop: 8 }}>
-        <input
-          type="checkbox"
-          checked={createMissingCategories}
-          onChange={(e) => setCreateMissingCategories(e.target.checked)}
-        />
-        Fehlende Kategorien anlegen
-      </label>
       <div className="wizard-footer" role="toolbar">
         <button onClick={onBack} disabled={isImporting} aria-disabled={isImporting}>
           Zurück

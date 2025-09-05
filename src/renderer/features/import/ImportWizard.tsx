@@ -73,8 +73,7 @@ const ImportWizard: React.FC<Props> = ({ open, onClose }) => {
             onClose={handleFinish}
             onRestart={() => {
               setResult(null);
-              setMapping({});
-              setStep(1);
+              setStep(2);
             }}
           />
         )}

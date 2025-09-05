@@ -1,196 +1,161 @@
 import Database from 'better-sqlite3';
 
-export type ImportMapping = Partial<{
-  articleNumber: string;
-  ean: string;
-  name: string;
-  price: string;
-  unit: string;
-  productGroup: string;
-  categoryName: string;
-}>;
-
-export type ImportOptions = {
-  createMissingCategories?: boolean;
-  dryRun?: boolean;
+type Mapping = {
+  articleNumber: string; // Spaltenname aus der Datei (Pflicht)
+  ean?: string;
+  name?: string;
+  price?: string;
+  unit?: string;
+  productGroup?: string;
+  category_id?: string; // optional: Zahl oder leer
 };
 
-export type ImportRequest = {
-  rows: Record<string, unknown>[];
-  mapping: ImportMapping;
-  options?: ImportOptions;
-};
+type ImportRow = Record<string, any>;
 
-export type ImportResult = {
-  ok: number;
-  inserted: number;
-  updated: number;
-  skipped: number;
-  errors: Array<{
-    row: number;
-    reason: string;
-    raw: Record<string, unknown>;
-    mapped: Record<string, unknown>;
-  }>;
-  errorCsv?: string;
-};
+export async function runImport({
+  rows,
+  mapping,
+  db,
+}: {
+  rows: ImportRow[];
+  mapping: Mapping;
+  db: Database;
+}) {
+  const result = { ok: 0, inserted: 0, updated: 0, skipped: 0, errors: 0, errorRows: [] as any[] };
 
-export function runArticleImport(db: Database, req: ImportRequest): ImportResult {
-  const { rows, mapping, options } = req;
-  const opts = { createMissingCategories: false, dryRun: false, ...(options ?? {}) };
+  // Safety: Artikelnummer muss gemappt sein
+  if (!mapping.articleNumber) {
+    return { ...result, errors: rows.length, errorRows: rows.map((_, i) => ({ row: i, message: 'Kein Feld für Artikelnummer zugeordnet' })) };
+  }
 
-  const result: ImportResult = { ok: 0, inserted: 0, updated: 0, skipped: 0, errors: [] };
+  const tx = db.transaction((batch: ImportRow[]) => {
+    for (let i = 0; i < batch.length; i++) {
+      const src = batch[i];
 
-  const trim = (v: unknown) => (typeof v === 'string' ? v.trim() : v);
-  const toNull = (v: unknown) => {
-    if (v === undefined || v === null) return null;
-    if (typeof v === 'string' && v.trim() === '') return null;
-    return v;
-  };
-  const toPrice = (v: unknown): number | null => {
-    if (v === undefined || v === null) return null;
-    if (typeof v === 'number') return Number.isFinite(v) ? v : null;
-    if (typeof v === 'string') {
-      const s = v.replace(/\./g, '').replace(',', '.').trim();
-      const n = Number(s);
-      return Number.isFinite(n) ? n : null;
-    }
-    return null;
-  };
+      // Werte aus der Datei anhand mapping herausziehen
+      // Trim & Normalisieren
+      const v = (key?: string) => (key ? String(src[key] ?? '').trim() : undefined);
 
-  const get = (row: Record<string, unknown>, header?: string) =>
-    header ? toNull(trim(row[header])) : null;
+      const val = {
+        articleNumber: v(mapping.articleNumber) || undefined,
+        ean: v(mapping.ean),
+        name: v(mapping.name),
+        price: mapping.price ? toNumber(src[mapping.price]) : undefined,
+        unit: v(mapping.unit),
+        productGroup: v(mapping.productGroup),
+        category_id: mapping.category_id ? toInt(src[mapping.category_id]) : undefined,
+      };
 
-  const selectArticleId = db.prepare(`SELECT id FROM articles WHERE articleNumber = ?`);
-  const insertArticleStmtBase = db.prepare(`
-    INSERT INTO articles (articleNumber, name, price, unit, ean, productGroup, category_id, updated_at)
-    VALUES (@articleNumber, @name, COALESCE(@price, 0), @unit, @ean, @productGroup, @category_id, CURRENT_TIMESTAMP)
-  `);
-  const updateArticleStmtFactory = (cols: string[]) =>
-    db.prepare(`
-      UPDATE articles
-      SET ${cols.map((c) => `${c}=@${c}`).join(', ')}, updated_at=CURRENT_TIMESTAMP
-      WHERE articleNumber=@articleNumber
-    `);
+      if (!val.articleNumber) {
+        result.errors++;
+        result.errorRows.push({ row: i, message: 'Leere Artikelnummer' });
+        continue;
+      }
 
-  const ensureCategoryId = (name: string | null): number | null => {
-    if (!name) return null;
-    const row = db.prepare(`SELECT id FROM categories WHERE name = ?`).get(String(name)) as { id: number } | undefined;
-    if (row?.id) return row.id;
-    if (!opts.createMissingCategories) return null;
-    const info = db.prepare(`INSERT INTO categories (name) VALUES (?)`).run(String(name));
-    return Number(info.lastInsertRowid);
-  };
+      // Dynamische Spaltenliste: nur gesetzte Werte berücksichtigen
+      const cols: string[] = ['articleNumber'];      // key ist immer dabei
+      const params: Record<string, any> = { articleNumber: val.articleNumber };
 
-  const trx = db.transaction((rowsIn: typeof rows) => {
-    for (let i = 0; i < rowsIn.length; i++) {
-      const raw = rowsIn[i] ?? {};
-      const mapped: Record<string, unknown> = {};
+      ([
+        ['ean', val.ean],
+        ['name', val.name],
+        ['price', val.price],
+        ['unit', val.unit],
+        ['productGroup', val.productGroup],
+        ['category_id', val.category_id],
+      ] as const).forEach(([k, vv]) => {
+        if (vv !== undefined && vv !== '') {
+          cols.push(k);
+          params[k] = vv;
+        }
+      });
+
+      // Falls nur die Artikelnummer da ist, importiere trotzdem (touch), damit updated_at gesetzt wird
+      cols.push('updated_at');
+      const usingCols = cols.filter(c => c !== 'updated_at'); // für UPSERT-SET
+
+      const insertPlaceholders = cols.map(c => (c === 'updated_at' ? 'CURRENT_TIMESTAMP' : `@${c}`)).join(',');
+
+      // UPSERT mit COALESCE: Nur gesetzte Felder überschreiben, sonst alten Wert behalten
+      const setClauses = usingCols
+        .filter(c => c !== 'articleNumber') // key nie updaten
+        .map(c => `${c}=COALESCE(excluded.${c}, ${'articles.' + c})`)
+        .concat(`updated_at=CURRENT_TIMESTAMP`)
+        .join(', ');
+
+      const upsertSql =
+        `INSERT INTO articles (${cols.join(',')}) ` +
+        `VALUES (${insertPlaceholders}) ` +
+        `ON CONFLICT(articleNumber) DO UPDATE SET ${setClauses}`;
 
       try {
-        db.exec('SAVEPOINT one');
+        // 1) Primärweg: UPSERT
+        const stmt = db.prepare(upsertSql);
+        const info = stmt.run(params);
 
-        const articleNumber = String(get(raw, mapping.articleNumber) ?? '').trim();
-        if (!articleNumber) {
-          result.errors.push({ row: i, reason: 'Pflichtfeld "Artikelnummer" fehlt', raw, mapped: {} });
-          db.exec('RELEASE one');
-          continue;
+        // Heuristik inserted/updated
+        if (info.changes === 1 && info.lastInsertRowid) {
+          result.inserted++;
+        } else {
+          result.updated++;
         }
-        mapped.articleNumber = articleNumber;
-
-        const name = get(raw, mapping.name) as string | null;
-        const ean = get(raw, mapping.ean) as string | null;
-        const unit = get(raw, mapping.unit) as string | null;
-        const productGroup = get(raw, mapping.productGroup) as string | null;
-        const price = toPrice(get(raw, mapping.price) as string | number | null);
-        const categoryName = get(raw, mapping.categoryName) as string | null;
-
-        if (name !== null) mapped.name = name;
-        if (ean !== null) mapped.ean = ean;
-        if (unit !== null) mapped.unit = unit;
-        if (productGroup !== null) mapped.productGroup = productGroup;
-        if (price !== null) mapped.price = price;
-
-        const category_id = categoryName !== null ? ensureCategoryId(categoryName) : null;
-        if (categoryName !== null) mapped.category_id = category_id;
-
-        const existing = selectArticleId.get(articleNumber) as { id: number } | undefined;
-
-        if (existing) {
-          const updatable = ['name', 'price', 'unit', 'ean', 'productGroup', 'category_id'].filter((k) => k in mapped);
-
-          if (updatable.length === 0) {
-            result.skipped++;
-            db.exec('RELEASE one');
-            continue;
+        result.ok++;
+      } catch (e: any) {
+        // 2) Fallback: UPDATE → wenn 0 rows → INSERT
+        try {
+          // UPDATE nur für gesetzte Felder
+          const updateCols = usingCols.filter(c => c !== 'articleNumber');
+          if (updateCols.length > 0) {
+            const updSql =
+              `UPDATE articles SET ` +
+              updateCols.map(c => `${c}=@${c}`).concat('updated_at=CURRENT_TIMESTAMP').join(', ') +
+              ` WHERE articleNumber=@articleNumber`;
+            const upd = db.prepare(updSql).run(params);
+            if (upd.changes > 0) {
+              result.updated++;
+              result.ok++;
+              continue;
+            }
           }
 
-          const stmt = updateArticleStmtFactory(updatable);
-          if (!opts.dryRun) stmt.run({ articleNumber, ...mapped });
-          result.updated++;
-          db.exec('RELEASE one');
-          continue;
-        }
-
-        if (!name || String(name).trim() === '') {
-          result.errors.push({
+          // INSERT (nur gesetzte Spalten + updated_at)
+          const insCols = usingCols.concat('updated_at');
+          const insVals = insCols.map(c => (c === 'updated_at' ? 'CURRENT_TIMESTAMP' : `@${c}`)).join(',');
+          const insSql = `INSERT INTO articles (${insCols.join(',')}) VALUES (${insVals})`;
+          db.prepare(insSql).run(params);
+          result.inserted++;
+          result.ok++;
+        } catch (e2: any) {
+          result.errors++;
+          result.errorRows.push({
             row: i,
-            reason: 'Neu anlegen nicht möglich: "Name" fehlt (Pflichtfeld für INSERT).',
-            raw,
-            mapped: { articleNumber, ...mapped },
+            columnsPresent: Object.keys(params),
+            valuesPresent: params,
+            sqlTried: upsertSql,
+            message: String(e2?.message || e2),
           });
-          db.exec('RELEASE one');
-          continue;
         }
-
-        const insertPayload = {
-          articleNumber,
-          name: String(name),
-          price: price ?? 0,
-          unit: unit ?? null,
-          ean: ean ?? null,
-          productGroup: productGroup ?? null,
-          category_id: category_id ?? null,
-        };
-
-        if (!opts.dryRun) insertArticleStmtBase.run(insertPayload);
-        result.inserted++;
-        db.exec('RELEASE one');
-      } catch (e: any) {
-        db.exec('ROLLBACK TO one');
-        result.errors.push({
-          row: i,
-          reason: e?.message || 'Unbekannter Fehler (SQL)',
-          raw,
-          mapped,
-        });
-        db.exec('RELEASE one');
       }
     }
   });
 
-  trx(rows);
-
-  result.ok = result.inserted + result.updated;
-
-  if (result.errors.length > 0) {
-    const records = result.errors.map((e) => ({
-      row: e.row,
-      reason: e.reason,
-      articleNumber: (e.mapped?.articleNumber as string) ?? '',
-      mappedJson: JSON.stringify(e.mapped ?? {}),
-      rawJson: JSON.stringify(e.raw ?? {}),
-    }));
-    const header = 'row;reason;articleNumber;mappedJson;rawJson';
-    const body = records
-      .map((r) =>
-        [r.row, r.reason, r.articleNumber, r.mappedJson, r.rawJson]
-          .map((s) => `"${String(s).replace(/"/g, '""')}"`)
-          .join(';'),
-      )
-      .join('\n');
-    result.errorCsv = `${header}\n${body}`;
+  try {
+    tx(rows);
+  } catch (e: any) {
+    // Sollte durch obige catchs selten kommen
+    return { ...result, fatal: String(e?.message || e) };
   }
 
   return result;
+}
+
+function toNumber(x: any): number | undefined {
+  if (x === null || x === undefined || x === '') return undefined;
+  const s = String(x).replace(/\./g, '').replace(',', '.').trim();
+  const n = Number(s);
+  return Number.isFinite(n) ? n : undefined;
+}
+function toInt(x: any): number | undefined {
+  const n = Number.parseInt(String(x).trim(), 10);
+  return Number.isFinite(n) ? n : undefined;
 }
