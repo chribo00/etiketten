@@ -1,6 +1,6 @@
 {
   "name": "etiketten",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Etikettenerstellungs-Software",
   "author": "ETU GmbH",
   "private": true,
@@ -15,7 +15,8 @@
     "build": "npm run build:main && npm run build:preload && npm run build:renderer",
     "start": "electron .",
     "pack": "electron-builder --dir",
-    "dist": "npm run build && electron-builder --win nsis",
+    "dist": "npm run pack:win",
+    "pack:win": "npm run build:preload && electron-builder --win nsis",
     "dist:msi": "npm run build && electron-builder --win msi",
     "dist:all": "npm run build && electron-builder --win nsis msi",
     "rebuild-native": "electron-rebuild -f -w better-sqlite3 -w sharp",
@@ -84,11 +85,16 @@
       "build/**/*",
       "dist/**/*",
       "node_modules/**/*",
-      "package.json"
+      "package.json",
+      "dist-renderer/**/*",
+      "dev-main.cjs",
+      "src/main/**/*",
+      "!**/*.map"
     ],
     "asar": true,
     "asarUnpack": [
-      "**/node_modules/**/build/**"
+      "**/node_modules/**/build/**",
+      "node_modules/better-sqlite3/**/*"
     ],
     "extraResources": [
       {
@@ -97,16 +103,18 @@
       }
     ],
     "win": {
-      "icon": "build/icon.ico",
-      "artifactName": "ETU-Etiketten-${version}-Setup.${ext}",
-      "target": "nsis"
+      "artifactName": "Etiketten-${version}-Setup.${ext}",
+      "target": [
+        { "target": "nsis", "arch": ["x64"] }
+      ]
     },
     "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "ETU Etiketten"
+      "shortcutName": "ETU Etiketten",
+      "perMachine": false
     }
   }
 }
