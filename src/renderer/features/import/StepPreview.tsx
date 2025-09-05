@@ -18,7 +18,7 @@ const StepPreview: React.FC<Props> = ({ rows, mapping, onBack, onCancel, onCompl
   async function startImport() {
     setImporting(true);
     try {
-      const res = await window.api.articles.import({ rows, mappedColumns: mapping });
+      const res = await window.api.articles.import({ rows });
       onComplete(res);
     } catch (e: any) {
       console.error('Import Fehler', e);
@@ -61,12 +61,13 @@ const StepPreview: React.FC<Props> = ({ rows, mapping, onBack, onCancel, onCompl
         <button
           className="primary"
           onClick={startImport}
-          disabled={isImporting}
-          aria-disabled={isImporting}
+          disabled={isImporting || !mapping.articleNumber}
+          aria-disabled={isImporting || !mapping.articleNumber}
         >
           Import starten
         </button>
       </div>
+      {!mapping.articleNumber && <p style={{ color: 'red' }}>Artikelnummer muss gemappt sein</p>}
     </div>
   );
 };

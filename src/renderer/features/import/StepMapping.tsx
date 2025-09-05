@@ -55,7 +55,7 @@ const StepMapping: React.FC<Props> = ({ headers, rows, onBack, onMapped }) => {
                     });
                   }}
                 >
-                  <option value="">– bitte auswählen –</option>
+          <option value="">– bitte auswählen –</option>
                   {headers.map((h) => (
                     <option key={h} value={h}>
                       {h}
@@ -72,12 +72,13 @@ const StepMapping: React.FC<Props> = ({ headers, rows, onBack, onMapped }) => {
         <button
           className="primary"
           onClick={apply}
-          disabled={Object.keys(mapping).length === 0}
-          aria-disabled={Object.keys(mapping).length === 0}
+          disabled={!mapping.articleNumber}
+          aria-disabled={!mapping.articleNumber}
         >
           Weiter
         </button>
       </div>
+      {!mapping.articleNumber && <p style={{ color: 'red' }}>Bitte Artikelnummer zuweisen</p>}
     </div>
   );
 };

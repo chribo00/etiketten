@@ -8,30 +8,26 @@ interface Props {
 }
 
 const StepResult: React.FC<Props> = ({ result, onClose, onRestart }) => {
-  const { okCount, insertedCount, updatedCount, skippedCount, errorCount, errorsCsv } = result;
-
-  const downloadErrors = () => {
-    if (!errorsCsv) return;
-    const blob = new Blob([errorsCsv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'import-errors.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  const { ok, inserted, updated, skipped, errors } = result;
 
   return (
     <div>
       <div className="summary">
-        <div className="badge">OK: {okCount}</div>
-        <div className="badge">Inserted: {insertedCount}</div>
-        <div className="badge">Updated: {updatedCount}</div>
-        <div className="badge">Skipped: {skippedCount}</div>
-        <div className="badge">Errors: {errorCount}</div>
+        <div className="badge">OK: {ok}</div>
+        <div className="badge">Inserted: {inserted}</div>
+        <div className="badge">Updated: {updated}</div>
+        <div className="badge">Skipped: {skipped}</div>
+        <div className="badge">Errors: {errors.length}</div>
       </div>
-      {errorCount > 0 && (
-        <button onClick={downloadErrors}>Fehler als CSV herunterladen</button>
+      {errors.length > 0 && (
+        <details>
+          <summary>Fehler anzeigen</summary>
+          <ul>
+            {errors.map((e) => (
+              <li key={e.row}>Zeile {e.row + 1}: {e.message}</li>
+            ))}
+          </ul>
+        </details>
       )}
       <div className="wizard-footer" role="toolbar">
         <button onClick={onRestart}>Erneut importieren</button>

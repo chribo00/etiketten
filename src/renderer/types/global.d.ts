@@ -21,6 +21,7 @@ declare global {
       };
       articles: {
         upsertMany: (items: any[]) => Promise<any>;
+        import: (payload: { rows: any[] }) => Promise<any>;
       };
     };
   }

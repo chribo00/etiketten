@@ -23,10 +23,14 @@ describe('upsertArticles', () => {
       ean: null,
     }));
     const res1 = upsertArticles(batch);
-    expect(res1.inserted + res1.updated).toBe(53);
+    const ins1 = res1.filter((r) => r.status === 'inserted').length;
+    const upd1 = res1.filter((r) => r.status === 'updated').length;
+    expect(ins1 + upd1).toBe(53);
     const res2 = upsertArticles(batch);
-    expect(res2.inserted).toBe(0);
-    expect(res2.updated).toBe(53);
+    const ins2 = res2.filter((r) => r.status === 'inserted').length;
+    const upd2 = res2.filter((r) => r.status === 'updated').length;
+    expect(ins2).toBe(0);
+    expect(upd2).toBe(53);
   });
 });
 
