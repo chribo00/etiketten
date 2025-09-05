@@ -1,29 +1,52 @@
-import React, { useState } from 'react';
-import type { Mapping, PreviewRow, ImportResult } from './types';
+import React, { useMemo, useState } from 'react';
+import type { Mapping, MappingField, ImportResult } from './types';
 
 interface Props {
-  rows: PreviewRow[];
+  headers: string[];
+  rows: unknown[][];
   mapping: Mapping;
   onBack: () => void;
-  onCancel: () => void;
   onComplete: (result: ImportResult) => void;
 }
 
-const StepPreview: React.FC<Props> = ({ rows, mapping, onBack, onCancel, onComplete }) => {
+const StepPreview: React.FC<Props> = ({ headers, rows, mapping, onBack, onComplete }) => {
   const [isImporting, setImporting] = useState(false);
+  const [createMissingCategories, setCreateMissingCategories] = useState(true);
 
-  const headers = Object.keys(mapping);
-  const sample = rows.slice(0, 100);
+  const mappedSample = useMemo(() => {
+    const idx: Record<string, number> = {};
+    headers.forEach((h, i) => (idx[h] = i));
+    return rows.slice(0, 100).map((r) => {
+      const obj: Record<string, unknown> = {};
+      (Object.keys(mapping) as MappingField[]).forEach((key) => {
+        const col = mapping[key];
+        if (col) obj[key] = r[idx[col]];
+      });
+      return obj;
+    });
+  }, [headers, rows, mapping]);
+
+  const targetHeaders = Object.keys(mapping);
 
   async function startImport() {
     setImporting(true);
     try {
-      const res = await window.api.articles.import({ rows });
+      const objects = rows.map((r) => {
+        const obj: Record<string, unknown> = {};
+        headers.forEach((h, i) => {
+          obj[h] = r[i];
+        });
+        return obj;
+      });
+      const res: ImportResult = await window.api.invoke('import:run', {
+        rows: objects,
+        mapping,
+        options: { createMissingCategories, dryRun: false },
+      });
       onComplete(res);
     } catch (e: any) {
       console.error('Import Fehler', e);
       alert(e?.message || e);
-      onCancel();
     } finally {
       setImporting(false);
     }
@@ -35,15 +58,15 @@ const StepPreview: React.FC<Props> = ({ rows, mapping, onBack, onCancel, onCompl
         <table>
           <thead>
             <tr>
-              {headers.map((h) => (
+              {targetHeaders.map((h) => (
                 <th key={h}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {sample.map((r, i) => (
+            {mappedSample.map((r, i) => (
               <tr key={i}>
-                {headers.map((h) => (
+                {targetHeaders.map((h) => (
                   <td key={h}>{String((r as Record<string, unknown>)[h] ?? '')}</td>
                 ))}
               </tr>
@@ -51,12 +74,17 @@ const StepPreview: React.FC<Props> = ({ rows, mapping, onBack, onCancel, onCompl
           </tbody>
         </table>
       </div>
+      <label style={{ display: 'block', marginTop: 8 }}>
+        <input
+          type="checkbox"
+          checked={createMissingCategories}
+          onChange={(e) => setCreateMissingCategories(e.target.checked)}
+        />
+        Fehlende Kategorien anlegen
+      </label>
       <div className="wizard-footer" role="toolbar">
         <button onClick={onBack} disabled={isImporting} aria-disabled={isImporting}>
           Zurück
-        </button>
-        <button onClick={onCancel} disabled={isImporting} aria-disabled={isImporting}>
-          Abbrechen
         </button>
         <button
           className="primary"
@@ -64,7 +92,7 @@ const StepPreview: React.FC<Props> = ({ rows, mapping, onBack, onCancel, onCompl
           disabled={isImporting || !mapping.articleNumber}
           aria-disabled={isImporting || !mapping.articleNumber}
         >
-          Import starten
+          {isImporting ? 'Importiere…' : 'Import starten'}
         </button>
       </div>
       {!mapping.articleNumber && <p style={{ color: 'red' }}>Artikelnummer muss gemappt sein</p>}

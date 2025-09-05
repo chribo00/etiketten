@@ -3,14 +3,13 @@ import StepFile from './StepFile';
 import StepMapping from './StepMapping';
 import StepPreview from './StepPreview';
 import StepResult from './StepResult';
-import type { ParsedFile, Mapping, PreviewRow, ImportResult } from './types';
+import type { ParsedFile, Mapping, ImportResult } from './types';
 
 type Props = { open: boolean; onClose: () => void };
 
 const ImportWizard: React.FC<Props> = ({ open, onClose }) => {
   const [step, setStep] = useState(0);
   const [parsed, setParsed] = useState<ParsedFile | null>(null);
-  const [rows, setRows] = useState<PreviewRow[]>([]);
   const [mapping, setMapping] = useState<Mapping>({});
   const [result, setResult] = useState<ImportResult | null>(null);
 
@@ -21,8 +20,7 @@ const ImportWizard: React.FC<Props> = ({ open, onClose }) => {
     setStep(1);
   };
 
-    const handleMapped = (r: PreviewRow[], m: Mapping) => {
-    setRows(r);
+  const handleMapped = (m: Mapping) => {
     setMapping(m);
     setStep(2);
   };
@@ -30,7 +28,6 @@ const ImportWizard: React.FC<Props> = ({ open, onClose }) => {
   const reset = () => {
     setStep(0);
     setParsed(null);
-    setRows([]);
     setMapping({});
     setResult(null);
   };
@@ -38,6 +35,11 @@ const ImportWizard: React.FC<Props> = ({ open, onClose }) => {
   const handleCancel = () => {
     reset();
     onClose();
+  };
+
+  const handleFinish = () => {
+    window.dispatchEvent(new Event('articles:refresh'));
+    handleCancel();
   };
 
   const handleComplete = (res: ImportResult) => {
@@ -52,27 +54,27 @@ const ImportWizard: React.FC<Props> = ({ open, onClose }) => {
         {step === 1 && parsed && (
           <StepMapping
             headers={parsed.headers}
-            rows={parsed.rows}
             onBack={() => setStep(0)}
             onMapped={handleMapped}
           />
         )}
-        {step === 2 && (
+        {step === 2 && parsed && (
           <StepPreview
-            rows={rows}
+            headers={parsed.headers}
+            rows={parsed.rows}
             mapping={mapping}
             onBack={() => setStep(1)}
-            onCancel={handleCancel}
             onComplete={handleComplete}
           />
         )}
         {step === 3 && result && (
           <StepResult
             result={result}
-            onClose={handleCancel}
+            onClose={handleFinish}
             onRestart={() => {
-              reset();
-              setStep(0);
+              setResult(null);
+              setMapping({});
+              setStep(1);
             }}
           />
         )}

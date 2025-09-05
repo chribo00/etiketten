@@ -13,6 +13,7 @@ import {
   createCategory,
   renameCategory,
   deleteCategory,
+  db,
 } from '../db';
 import { IPC_CHANNELS, ok, err } from '../../shared/ipc';
 import { registerCartHandlers } from './cart';
@@ -21,6 +22,7 @@ import { registerShellHandlers } from './shell';
 import { registerMediaHandlers } from './media';
 import { registerArticlesHandlers } from './articles';
 import { registerImportHandlers } from './import';
+import { runArticleImport } from '../importer';
 
 export function registerIpcHandlers() {
   registerCartHandlers();
@@ -37,6 +39,19 @@ export function registerIpcHandlers() {
   ipcMain.handle(IPC_CHANNELS.datanorm.import, async (_e, { filePath, mapping, categoryId }) => {
     const res = await importDatanormFile({ filePath, mapping, categoryId });
     console.log('Import result', res);
+    return res;
+  });
+
+  ipcMain.handle('import:run', (_evt, payload) => {
+    console.log('[import] payload.mapping =', payload?.mapping);
+    const res = runArticleImport(db, payload);
+    console.log('[import] result =', {
+      ok: res.ok,
+      inserted: res.inserted,
+      updated: res.updated,
+      skipped: res.skipped,
+      errors: res.errors.length,
+    });
     return res;
   });
 
