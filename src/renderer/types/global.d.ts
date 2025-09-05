@@ -23,6 +23,7 @@ declare global {
         upsertMany: (items: any[]) => Promise<any>;
         import: (payload: { rows: any[] }) => Promise<any>;
       };
+      invoke: (channel: string, payload?: any) => Promise<any>;
     };
   }
 }

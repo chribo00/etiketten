@@ -93,6 +93,7 @@ const api = {
     },
     cancel: () => ipcRenderer.invoke(IPC_CHANNELS.import.cancel),
   },
+  invoke: (channel: string, payload?: any) => ipcRenderer.invoke(channel, payload),
   openDevTools: () => ipcRenderer.invoke(IPC_CHANNELS.devtools.open),
 };
 

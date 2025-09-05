@@ -10,7 +10,7 @@ export type MappingField =
   | 'price'
   | 'unit'
   | 'productGroup'
-  | 'category';
+  | 'categoryName';
 
 // maps target fields to column names from the source file
 export type Mapping = Partial<Record<MappingField, string>>;
@@ -23,5 +23,11 @@ export type ImportResult = {
   inserted: number;
   updated: number;
   skipped: number;
-  errors: { row: number; message: string }[];
+  errors: Array<{
+    row: number;
+    reason: string;
+    raw: Record<string, unknown>;
+    mapped: Record<string, unknown>;
+  }>;
+  errorCsv?: string;
 };

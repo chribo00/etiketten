@@ -8,7 +8,18 @@ interface Props {
 }
 
 const StepResult: React.FC<Props> = ({ result, onClose, onRestart }) => {
-  const { ok, inserted, updated, skipped, errors } = result;
+  const { ok, inserted, updated, skipped, errors, errorCsv } = result;
+
+  const downloadErrors = () => {
+    if (!errorCsv) return;
+    const blob = new Blob([errorCsv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'import-errors.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div>
@@ -24,12 +35,15 @@ const StepResult: React.FC<Props> = ({ result, onClose, onRestart }) => {
           <summary>Fehler anzeigen</summary>
           <ul>
             {errors.map((e) => (
-              <li key={e.row}>Zeile {e.row + 1}: {e.message}</li>
+              <li key={e.row}>Zeile {e.row + 1}: {e.reason}</li>
             ))}
           </ul>
         </details>
       )}
       <div className="wizard-footer" role="toolbar">
+        <button onClick={downloadErrors} disabled={!errorCsv} aria-disabled={!errorCsv}>
+          Fehler als CSV herunterladen
+        </button>
         <button onClick={onRestart}>Erneut importieren</button>
         <button className="primary" onClick={onClose}>
           Fertig
