@@ -11,10 +11,10 @@ export const dbPath = path.join(dataDir, 'app-data.db');
 console.log('DB path:', dbPath);
 export const db = new Database(dbPath);
 ensureSchema(db);
-console.debug(
-  "[db] index_list('articles') =>",
-  db.prepare("PRAGMA index_list('articles')").all(),
-);
+const ti = db.prepare("PRAGMA table_info(articles)").all();
+console.log('[db] table_info(articles) =>', ti.map(({ name, notnull, type }) => ({ name, notnull, type })));
+const il = db.prepare("PRAGMA index_list('articles')").all();
+console.log("[db] index_list('articles') =>", il);
 console.log('Schema OK');
 
 export const mediaRoot = path.join(app.getPath('userData'), 'media');

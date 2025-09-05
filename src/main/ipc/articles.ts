@@ -1,7 +1,8 @@
 import { ipcMain } from 'electron';
 import { z } from 'zod';
-import { searchArticles, upsertArticles, type ArticleRow, type ImportRow } from '../db';
+import { searchArticles, upsertArticles, db, type ArticleRow, type ImportRow } from '../db';
 import { IPC_CHANNELS, SearchPayloadSchema, SearchResultSchema } from '../../shared/ipc';
+import { runImport } from '../importer';
 
 export function registerArticlesHandlers() {
   ipcMain.handle(IPC_CHANNELS.articles.search, (_e, payload) => {
@@ -64,5 +65,9 @@ export function registerArticlesHandlers() {
     } catch (e: any) {
       return { ok: 0, inserted: 0, updated: 0, skipped: 0, errors: [{ row: -1, message: e?.message || String(e) }] };
     }
+  });
+
+  ipcMain.handle('import:run', async (_evt, { rows, mapping }) => {
+    return runImport({ rows, mapping, db });
   });
 }

@@ -14,7 +14,7 @@ const targetFields: { key: MappingField; label: string }[] = [
   { key: 'price', label: 'Preis' },
   { key: 'unit', label: 'Einheit' },
   { key: 'productGroup', label: 'Produktgruppe' },
-  { key: 'categoryName', label: 'Kategorie' },
+  { key: 'category_id', label: 'Kategorie-ID' },
 ];
 
 const StepMapping: React.FC<Props> = ({ headers, onBack, onMapped }) => {

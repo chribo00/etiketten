@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import type { ImportResult } from './types';
 
 interface Props {
@@ -8,7 +8,17 @@ interface Props {
 }
 
 const StepResult: React.FC<Props> = ({ result, onClose, onRestart }) => {
-  const { ok, inserted, updated, skipped, errors, errorCsv } = result;
+  const { ok, inserted, updated, skipped, errors, errorRows } = result;
+
+  const errorCsv = useMemo(() => {
+    if (!errorRows || errorRows.length === 0) return null;
+    const headers = Array.from(new Set(errorRows.flatMap((r) => Object.keys(r))));
+    const lines = [headers.join(';')];
+    for (const r of errorRows) {
+      lines.push(headers.map((h) => JSON.stringify(r[h] ?? '')).join(';'));
+    }
+    return lines.join('\n');
+  }, [errorRows]);
 
   const downloadErrors = () => {
     if (!errorCsv) return;
@@ -28,14 +38,14 @@ const StepResult: React.FC<Props> = ({ result, onClose, onRestart }) => {
         <div className="badge">Inserted: {inserted}</div>
         <div className="badge">Updated: {updated}</div>
         <div className="badge">Skipped: {skipped}</div>
-        <div className="badge">Errors: {errors.length}</div>
+        <div className="badge">Errors: {errors}</div>
       </div>
-      {errors.length > 0 && (
+      {errorRows.length > 0 && (
         <details>
           <summary>Fehler anzeigen</summary>
           <ul>
-            {errors.map((e) => (
-              <li key={e.row}>Zeile {e.row + 1}: {e.reason}</li>
+            {errorRows.map((e) => (
+              <li key={e.row}>Zeile {e.row + 1}: {e.message}</li>
             ))}
           </ul>
         </details>
