@@ -110,5 +110,5 @@ export async function importDatanormFile({
 
   const res = upsertArticles(arr);
   const durationMs = Date.now() - start;
-  return { parsed: arr.length, inserted: res.count, updated: 0, durationMs };
+  return { parsed: arr.length, inserted: res.inserted, updated: res.updated, durationMs };
 }

@@ -30,16 +30,18 @@ const StepPreview: React.FC<Props> = ({ headers, rows, mapping, onBack, onComple
   async function startImport() {
     setImporting(true);
     try {
-      const objects = rows.map((r) => {
-        const obj: Record<string, unknown> = {};
-        headers.forEach((h, i) => {
-          obj[h] = r[i];
+      const idx: Record<string, number> = {};
+      headers.forEach((h, i) => (idx[h] = i));
+      const objects = rows.map((r, rowIdx) => {
+        const obj: Record<string, unknown> = { row: rowIdx };
+        (Object.keys(mapping) as MappingField[]).forEach((key) => {
+          const col = mapping[key];
+          if (col) obj[key] = r[idx[col]];
         });
         return obj;
       });
-      const res: ImportResult = await window.api.invoke('import:run', {
+      const res: ImportResult = await window.api.invoke('articles:import', {
         rows: objects,
-        mapping,
       });
       onComplete(res);
     } catch (e: any) {
