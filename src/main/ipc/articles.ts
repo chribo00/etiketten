@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron';
 import { z } from 'zod';
 import { searchArticles, upsertArticles, type ArticleRow } from '../db';
+import { importArticles } from '../services/importArticles';
 import { IPC_CHANNELS, SearchPayloadSchema, SearchResultSchema } from '../../shared/ipc';
 
 export function registerArticlesHandlers() {
@@ -43,5 +44,9 @@ export function registerArticlesHandlers() {
         },
       };
     }
+  });
+
+  ipcMain.handle('articles:import', async (_evt, payload) => {
+    return await importArticles(payload);
   });
 }

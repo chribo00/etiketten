@@ -3,22 +3,16 @@ import StepFile from './StepFile';
 import StepMapping from './StepMapping';
 import StepPreview from './StepPreview';
 import StepResult from './StepResult';
-import type {
-  ParsedFile,
-  RawImportRow,
-  Mapping,
-  ImportSummary,
-} from './types';
+import type { ParsedFile, Mapping, PreviewRow, ImportResult } from './types';
 
 type Props = { open: boolean; onClose: () => void };
 
 const ImportWizard: React.FC<Props> = ({ open, onClose }) => {
   const [step, setStep] = useState(0);
   const [parsed, setParsed] = useState<ParsedFile | null>(null);
-  const [rows, setRows] = useState<RawImportRow[]>([]);
+  const [rows, setRows] = useState<PreviewRow[]>([]);
   const [mapping, setMapping] = useState<Mapping>({});
-  const [summary, setSummary] = useState<ImportSummary | null>(null);
-  const [cancelled, setCancelled] = useState(false);
+  const [result, setResult] = useState<ImportResult | null>(null);
 
   if (!open) return null;
 
@@ -27,7 +21,7 @@ const ImportWizard: React.FC<Props> = ({ open, onClose }) => {
     setStep(1);
   };
 
-  const handleMapped = (r: RawImportRow[], m: Mapping) => {
+    const handleMapped = (r: PreviewRow[], m: Mapping) => {
     setRows(r);
     setMapping(m);
     setStep(2);
@@ -38,8 +32,7 @@ const ImportWizard: React.FC<Props> = ({ open, onClose }) => {
     setParsed(null);
     setRows([]);
     setMapping({});
-    setSummary(null);
-    setCancelled(false);
+    setResult(null);
   };
 
   const handleCancel = () => {
@@ -47,9 +40,8 @@ const ImportWizard: React.FC<Props> = ({ open, onClose }) => {
     onClose();
   };
 
-  const handleComplete = (s: ImportSummary, c: boolean) => {
-    setSummary(s);
-    setCancelled(c);
+  const handleComplete = (res: ImportResult) => {
+    setResult(res);
     setStep(3);
   };
 
@@ -74,10 +66,9 @@ const ImportWizard: React.FC<Props> = ({ open, onClose }) => {
             onComplete={handleComplete}
           />
         )}
-        {step === 3 && summary && (
+        {step === 3 && result && (
           <StepResult
-            summary={summary}
-            cancelled={cancelled}
+            result={result}
             onClose={handleCancel}
             onRestart={() => {
               reset();
