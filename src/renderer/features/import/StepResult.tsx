@@ -8,17 +8,18 @@ interface Props {
 }
 
 const StepResult: React.FC<Props> = ({ result, onClose, onRestart }) => {
-  const { ok, inserted, updated, skipped, errors, errorRows } = result;
+  const { ok, inserted, updated, skipped, errors } = result;
 
   const errorCsv = useMemo(() => {
-    if (!errorRows || errorRows.length === 0) return null;
-    const headers = Array.from(new Set(errorRows.flatMap((r) => Object.keys(r))));
-    const lines = [headers.join(';')];
-    for (const r of errorRows) {
-      lines.push(headers.map((h) => JSON.stringify(r[h] ?? '')).join(';'));
+    if (!errors || errors.length === 0) return null;
+    const lines = ['row;code;message;sql;params'];
+    for (const e of errors) {
+      lines.push(
+        `${e.row};${e.code ?? ''};"${e.message.replaceAll('"', '""')}";"${e.sql.replaceAll('"', '""')}";"${JSON.stringify(e.params).replaceAll('"', '""')}"`
+      );
     }
     return lines.join('\n');
-  }, [errorRows]);
+  }, [errors]);
 
   const downloadErrors = () => {
     if (!errorCsv) return;
@@ -38,14 +39,16 @@ const StepResult: React.FC<Props> = ({ result, onClose, onRestart }) => {
         <div className="badge">Inserted: {inserted}</div>
         <div className="badge">Updated: {updated}</div>
         <div className="badge">Skipped: {skipped}</div>
-        <div className="badge">Errors: {errors}</div>
+        <div className="badge">Errors: {errors.length}</div>
       </div>
-      {errorRows.length > 0 && (
+      {errors.length > 0 && (
         <details>
           <summary>Fehler anzeigen</summary>
           <ul>
-            {errorRows.map((e) => (
-              <li key={e.row}>Zeile {e.row + 1}: {e.message}</li>
+            {errors.map((e) => (
+              <li key={e.row}>
+                row={e.row}; sql={e.sql}; params={JSON.stringify(e.params)}; code={e.code ?? ''}; message={e.message}
+              </li>
             ))}
           </ul>
         </details>

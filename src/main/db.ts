@@ -81,67 +81,98 @@ function normalizeRow(input: ImportRow): ImportRow {
   return out;
 }
 
+// Hilfsfunktion: baut ein "sicheres" UPSERT, auch wenn updateCols leer ist
+function buildUpsertSQL(columnsPresent: string[], updateCols: string[]) {
+  const insertCols = [...columnsPresent, 'updated_at'];
+  const insertVals = insertCols.map(c => c === 'updated_at' ? 'CURRENT_TIMESTAMP' : `@${c}`);
+
+  const updateList = (updateCols.length > 0
+    ? [...updateCols.map(c => `${c} = excluded.${c}`), 'updated_at = excluded.updated_at']
+    : ['updated_at = excluded.updated_at']
+  ).join(',');
+
+  const sql = `
+    INSERT INTO articles (${insertCols.join(',')})
+    VALUES (${insertVals.join(',')})
+    ON CONFLICT(articleNumber) DO UPDATE SET ${updateList}
+  `.trim();
+
+  return sql;
+}
+
+function toPlainParams(obj: Record<string, any>) {
+  const plain: Record<string, any> = {};
+  for (const k of Object.keys(obj)) {
+    const v = (obj as any)[k];
+    plain[k] = v === undefined ? null : v;
+  }
+  return plain;
+}
+
 export function upsertArticles(rows: ImportRow[]) {
-  const withKeys = rows.map(normalizeRow).map((r, idx) => {
-    if (!r.articleNumber) {
-      throw new Error(`Row ${idx}: articleNumber fehlt oder ist leer`);
-    }
-    return r;
-  });
+  const normalized = rows.map(normalizeRow).map((r, idx) => ({ ...r, row: (rows as any)[idx]?.row ?? idx }));
 
-  const runTx = db.transaction((items: ImportRow[]) => {
-    const results: Array<{row: number; status: 'updated'|'inserted'|'skipped'|'error'; message?: string}> = [];
+  const results = {
+    ok: 0,
+    inserted: 0,
+    updated: 0,
+    skipped: 0,
+    errors: [] as Array<{
+      row: number;
+      code?: number;
+      message: string;
+      sql: string;
+      params: Record<string, any>;
+    }>,
+  };
 
+  const tx = db.transaction((items: any[]) => {
     for (let i = 0; i < items.length; i++) {
       const r = items[i];
 
-      const updateCols: string[] = [];
-      const params: Record<string, any> = { articleNumber: r.articleNumber };
-
-      (['ean','name','price','unit','productGroup','category_id'] as const).forEach(col => {
-        if (r[col] !== undefined) {
-          updateCols.push(`${col}=@${col}`);
-          params[col] = r[col];
-        }
-      });
-      updateCols.push(`updated_at=CURRENT_TIMESTAMP`);
-
-      let changed = 0;
-      if (updateCols.length > 1) {
-        const sql = `UPDATE articles SET ${updateCols.join(',')} WHERE articleNumber=@articleNumber`;
-        const stmt = db.prepare(sql);
-        changed = stmt.run(params).changes;
+      if (!r.articleNumber) {
+        results.errors.push({
+          row: r.row ?? i,
+          message: 'articleNumber fehlt oder ist leer',
+          sql: '',
+          params: toPlainParams(r),
+        });
+        continue;
       }
 
-      if (changed === 0) {
-        const insertCols: string[] = ['articleNumber', 'updated_at'];
-        const insertVals: string[] = ['@articleNumber', 'CURRENT_TIMESTAMP'];
-        const insertParams: Record<string, any> = { articleNumber: r.articleNumber };
+      const columnsPresent = Object.keys(r).filter(k => r[k] !== undefined && k !== 'row');
+      const updateCols = columnsPresent.filter(c => c !== 'articleNumber');
 
-        (['ean','name','price','unit','productGroup','category_id'] as const).forEach(col => {
-          if (r[col] !== undefined) {
-            insertCols.push(col);
-            insertVals.push(`@${col}`);
-            insertParams[col] = r[col];
-          }
-        });
+      const sql = buildUpsertSQL(columnsPresent, updateCols);
+      const stmt = db.prepare(sql);
 
-        const sql = `INSERT INTO articles (${insertCols.join(',')}) VALUES (${insertVals.join(',')})`;
-        try {
-          db.prepare(sql).run(insertParams);
-          results.push({ row: i, status: 'inserted' });
-        } catch (e: any) {
-          results.push({ row: i, status: 'error', message: e?.message || String(e) });
+      try {
+        const params = toPlainParams({ ...r });
+        const info = stmt.run(params);
+        if (info.changes === 1 && info.lastInsertRowid !== 0n && info.lastInsertRowid !== 0) {
+          results.inserted++;
+        } else if (info.changes >= 1) {
+          results.updated++;
+        } else {
+          results.skipped++;
         }
-      } else {
-        results.push({ row: i, status: 'updated' });
+      } catch (err: any) {
+        const code = typeof err.code === 'number' ? err.code : undefined;
+        results.errors.push({
+          row: r.row ?? i,
+          code,
+          message: String(err.message || err),
+          sql,
+          params: toPlainParams(r),
+        });
       }
     }
-
-    return results;
   });
 
-  return runTx(withKeys);
+  tx(normalized);
+
+  results.ok = normalized.length - results.errors.length;
+  return results;
 }
 
 export function getDbInfo() {
