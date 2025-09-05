@@ -52,6 +52,8 @@ export function ensureSchema(db: Database) {
     db.exec(`
       CREATE INDEX IF NOT EXISTS idx_articles_articlenumber
         ON articles(articleNumber);
+      CREATE UNIQUE INDEX IF NOT EXISTS ux_articles_articlenumber
+        ON articles(articleNumber);
       CREATE INDEX IF NOT EXISTS idx_articles_ean ON articles(ean);
       CREATE INDEX IF NOT EXISTS idx_articles_updated_at ON articles(updated_at);
     `);

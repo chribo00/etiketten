@@ -80,8 +80,8 @@ const api = {
         | { ok: true; inserted: number; updated: number }
         | { ok: false; code?: string; message: string; details?: any }
       >,
-    import: (payload: { rows: any[]; mappedColumns: Record<string, string | undefined> }) =>
-      ipcRenderer.invoke('articles:import', payload),
+    import: (payload: { rows: any[] }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.articles.import, payload),
   },
   import: {
     run: (payload: { rows: any[]; dryRun?: boolean }) =>

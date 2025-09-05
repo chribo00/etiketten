@@ -19,10 +19,9 @@ export type Mapping = Partial<Record<MappingField, string>>;
 export type PreviewRow = Record<string, unknown>;
 
 export type ImportResult = {
-  okCount: number;
-  insertedCount: number;
-  updatedCount: number;
-  skippedCount: number;
-  errorCount: number;
-  errorsCsv?: string;
+  ok: number;
+  inserted: number;
+  updated: number;
+  skipped: number;
+  errors: { row: number; message: string }[];
 };

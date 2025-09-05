@@ -1,7 +1,6 @@
 import { ipcMain } from 'electron';
 import { z } from 'zod';
-import { searchArticles, upsertArticles, type ArticleRow } from '../db';
-import { importArticles } from '../services/importArticles';
+import { searchArticles, upsertArticles, type ArticleRow, type ImportRow } from '../db';
 import { IPC_CHANNELS, SearchPayloadSchema, SearchResultSchema } from '../../shared/ipc';
 
 export function registerArticlesHandlers() {
@@ -29,7 +28,10 @@ export function registerArticlesHandlers() {
   ipcMain.handle(IPC_CHANNELS.articles.upsertMany, (_e, items) => {
     try {
       const parsed = UpsertMany.parse(items) as ArticleRow[];
-      return upsertArticles(parsed);
+      const res = upsertArticles(parsed);
+      const inserted = res.filter((r: any) => r.status === 'inserted').length;
+      const updated = res.filter((r: any) => r.status === 'updated').length;
+      return { ok: true, inserted, updated };
     } catch (err: any) {
       console.error('articles:upsertMany failed', err);
       if (err instanceof z.ZodError) {
@@ -46,7 +48,21 @@ export function registerArticlesHandlers() {
     }
   });
 
-  ipcMain.handle('articles:import', async (_evt, payload) => {
-    return await importArticles(payload);
+  ipcMain.handle(IPC_CHANNELS.articles.import, async (_evt, payload: { rows: ImportRow[] }) => {
+    try {
+      const results = upsertArticles(payload.rows);
+      const inserted = results.filter((r: any) => r.status === 'inserted').length;
+      const updated = results.filter((r: any) => r.status === 'updated').length;
+      const errors = results.filter((r: any) => r.status === 'error');
+      return {
+        ok: results.length - inserted - updated - errors.length,
+        inserted,
+        updated,
+        skipped: 0,
+        errors,
+      };
+    } catch (e: any) {
+      return { ok: 0, inserted: 0, updated: 0, skipped: 0, errors: [{ row: -1, message: e?.message || String(e) }] };
+    }
   });
 }
